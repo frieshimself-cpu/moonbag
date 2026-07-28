@@ -14,6 +14,7 @@
     "test:fuzz": "DB_PATH=test-fuzz.db tsx src/test-fuzz.ts; s=$?; rm -f test-fuzz.db*; exit $s",
     "test:engine": "DB_PATH=test-suite.db tsx src/test-suite.ts; s=$?; rm -f test-suite.db*; exit $s",
     "test:round": "tsx src/test-round.ts",
+    "launch:check": "tsx src/launch-check.ts",
     "reset": "tsx src/reset-cli.ts",
     "setup": "tsx src/setup.ts",
     "vault:new": "tsx src/new-vault.ts",
