@@ -8,6 +8,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
+    "test": "DB_PATH=test-suite.db tsx src/test-suite.ts && rm -f test-suite.db*",
     "test:round": "tsx src/test-round.ts",
     "typecheck": "tsc --noEmit"
   },
