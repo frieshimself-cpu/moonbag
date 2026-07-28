@@ -4,6 +4,7 @@ import { config } from "./config.js";
 import { db, getLockerBalances, getTotals } from "./db.js";
 import { nextDistributionAt } from "./distribute.js";
 import { vaultTokenAccount, LAMPORTS_PER_SOL } from "./solana.js";
+import { getLockStatus, requestUnlock } from "./unlock.js";
 
 export const api = Router();
 
@@ -16,6 +17,7 @@ api.get("/stats", (_req, res) => {
     tokenMint: config.tokenMint || null,
     dryRun: config.dryRun,
     intervalMs: config.distributionIntervalMs,
+    minLockHours: config.minLockHours,
     nextDistributionAt: nextDistributionAt(),
     totalLockedRaw: locked.total,
     totalLockedPct: (locked.total / config.totalSupplyRaw) * 100,
@@ -78,6 +80,47 @@ api.get("/lock-info", (_req, res) => {
     vaultWallet: vault,
     vaultTokenAccount: vaultAta,
     tokenMint: config.tokenMint || null,
-    how: "Send $MOONBAG to the vault wallet to lock. Rewards are paid in SOL to the wallet you sent from, every distribution round, proportional to your locked amount.",
+    minLockHours: config.minLockHours,
+    how: `Send $MOONBAG to the vault wallet to lock. Rewards are paid in SOL to the wallet you sent from, every distribution round, proportional to your locked amount. Each deposit can be unlocked ${config.minLockHours}h after it lands.`,
   });
+});
+
+/** A single wallet's lock position: total locked, unlockable now, next maturity. */
+api.get("/locker/:wallet", (req, res) => {
+  try {
+    new PublicKey(req.params.wallet);
+  } catch {
+    res.status(400).json({ error: "invalid wallet address" });
+    return;
+  }
+  const s = getLockStatus(req.params.wallet);
+  res.json({
+    wallet: req.params.wallet,
+    lockedRaw: s.lockedRaw,
+    lockedTokens: s.lockedRaw / 10 ** config.tokenDecimals,
+    unlockableRaw: s.unlockableRaw,
+    unlockableTokens: s.unlockableRaw / 10 ** config.tokenDecimals,
+    nextUnlockAt: s.nextUnlockAt,
+    minLockHours: config.minLockHours,
+  });
+});
+
+/**
+ * Self-serve unlock. The holder signs `MOONBAG_UNLOCK:<wallet>:<amountRaw>:<ts>`
+ * with their wallet key; the signature proves ownership, the 24h FIFO rule
+ * caps the amount, and a nonce table blocks replays.
+ */
+api.post("/unlock", async (req, res) => {
+  const { wallet, amountRaw, timestamp, signature } = req.body ?? {};
+  if (typeof wallet !== "string" || typeof signature !== "string" ||
+      typeof amountRaw !== "number" || typeof timestamp !== "number") {
+    res.status(400).json({ error: "required: wallet, amountRaw, timestamp, signature" });
+    return;
+  }
+  const result = await requestUnlock(wallet, amountRaw, timestamp, signature);
+  if (!result.ok) {
+    res.status(result.code).json({ error: result.error });
+    return;
+  }
+  res.json({ ok: true, simulated: result.simulated, txSignature: result.txSignature });
 });

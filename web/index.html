@@ -43,7 +43,7 @@
         <span class="line reveal">HOLDS</span>
         <span class="line reveal strike-wrap"><s>ANYMORE.</s></span>
       </h1>
-      <p class="hero-sub reveal">So every pump.fun creator reward this coin earns goes to the people who <b>lock their bags</b>. Every 2 minutes. Forever. Proportional to what you lock — lock more, earn more.</p>
+      <p class="hero-sub reveal">So every pump.fun creator reward this coin earns goes to the people who <b>lock their bags</b>. Every 2 minutes. Forever. Proportional to what you lock — lock more, earn more. Minimum lock: <b>24 hours</b>.</p>
       <div class="hero-cta reveal">
         <a class="btn btn-gold" id="hero-buy" href="https://pump.fun" target="_blank" rel="noopener">Buy on pump.fun <span class="btn-arrow">→</span></a>
         <a class="btn btn-ghost" href="#how">Lock &amp; earn</a>
@@ -77,8 +77,10 @@
 </header>
 
 <!-- ══════════════ TICKER ══════════════ -->
-<div class="ticker-band">
-  <div class="ticker-track" id="ticker-track"></div>
+<div class="ticker-clip">
+  <div class="ticker-band">
+    <div class="ticker-track" id="ticker-track"></div>
+  </div>
 </div>
 
 <!-- ══════════════ LIVE / COUNTDOWN ══════════════ -->
@@ -129,7 +131,7 @@
       <div class="step-num">01</div>
       <div class="step-icon lock-anim">🔒</div>
       <h3>Lock your bag</h3>
-      <p>Send any amount of $MOONBAG to the vault wallet. That's your lock — it's on-chain, public, and counted within seconds.</p>
+      <p>Send any amount of $MOONBAG to the vault wallet. That's your lock — on-chain, public, counted within seconds. Every deposit stays locked for a minimum of <b>24 hours</b>.</p>
     </div>
     <div class="step-card reveal">
       <div class="step-num">02</div>
@@ -192,6 +194,28 @@
     <div class="feed-head"><span class="pulse-dot"></span> LIVE PAYOUT FEED</div>
     <div class="feed" id="feed"></div>
   </div>
+
+  <div class="manage-card reveal" id="manage">
+    <div class="manage-head">
+      <div>
+        <div class="calc-title">🔐 your lock</div>
+        <div class="manage-sub">connect to see your position &amp; unlock (24h minimum per deposit)</div>
+      </div>
+      <button class="btn btn-ghost btn-small" id="wallet-btn">Connect wallet</button>
+    </div>
+    <div class="manage-body" id="manage-body" hidden>
+      <div class="manage-stats">
+        <div><span class="m-label">locked</span><b id="m-locked">—</b></div>
+        <div><span class="m-label">unlockable now</span><b id="m-unlockable" class="m-green">—</b></div>
+        <div><span class="m-label">next unlock</span><b id="m-next">—</b></div>
+      </div>
+      <div class="manage-actions">
+        <input type="number" id="unlock-amount" placeholder="amount of $MOONBAG" min="0" step="any" />
+        <button class="btn btn-gold btn-small" id="unlock-btn">Sign &amp; unlock</button>
+      </div>
+      <div class="manage-msg" id="manage-msg"></div>
+    </div>
+  </div>
 </section>
 
 <!-- ══════════════ FAQ ══════════════ -->
@@ -203,6 +227,10 @@
       <p>Send $MOONBAG from your wallet to the vault address (shown above once live). The wallet you send from is the wallet that gets paid. Locking more later just adds to your position.</p>
     </details>
     <details class="faq-item reveal">
+      <summary>Which wallet gets paid?</summary>
+      <p>The exact wallet that signed the lock transfer. SOL rewards go straight to it every drop, and unlocks return tokens to it. ⚠️ That means: lock from a wallet <b>you</b> control (Phantom, Solflare, etc.) — never from an exchange, or the exchange's wallet earns your rewards.</p>
+    </details>
+    <details class="faq-item reveal">
       <summary>Where do the rewards come from?</summary>
       <p>pump.fun pays token creators a fee on trading volume. 100% of those creator rewards are claimed by the vault and redistributed to lockers. No team cut is taken from the pot beyond a tiny SOL reserve for transaction fees.</p>
     </details>
@@ -212,7 +240,7 @@
     </details>
     <details class="faq-item reveal">
       <summary>Can I unlock?</summary>
-      <p>Unlocks are supported by the vault — but every unlock reduces your share of every future drop the moment it happens. That's the point.</p>
+      <p>Yes — self-serve, 24 hours after each deposit lands. Connect your wallet in the "your lock" panel, sign a message (free, nothing leaves your wallet), and the vault sends your tokens back. Unlocks consume your oldest deposits first, so topping up never resets the clock on tokens you already locked. And of course: the moment you unlock, your share of every future drop shrinks.</p>
     </details>
     <details class="faq-item reveal">
       <summary>Is this financial advice?</summary>

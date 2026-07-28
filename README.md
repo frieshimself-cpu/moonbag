@@ -21,7 +21,11 @@ This repo contains the full stack:
 1. **Lock** — a holder sends $MOONBAG to the vault wallet. The scanner watches
    the vault's token account on-chain and credits the *sending* wallet with the
    locked amount within ~30 seconds. Sending more later adds to the position.
-   Tokens the vault sends back are recorded as unlocks.
+   Every deposit has a **24-hour minimum lock** (configurable via
+   `MIN_LOCK_HOURS`). After that it can be unlocked self-serve: the holder
+   signs a message with their wallet on the site (free, proves ownership), and
+   the vault sends the tokens back. Unlocks consume the oldest deposits first,
+   so topping up never resets the clock on earlier tokens.
 2. **Accrue** — pump.fun pays the token creator a fee on every trade. The vault
    wallet *is* the creator wallet, so before each round it claims accrued
    creator fees (via PumpPortal's local-signing API — the key never leaves the
@@ -44,6 +48,10 @@ cp .env.example .env   # fill in after launch — runs fine empty
 npm run dev            # http://localhost:3000  (site + API)
 ```
 
+Run the test suites with `npm test` (engine math + unlock security, 11 checks).
+Generate a vault wallet with `npm run vault:new`. **See [RUNBOOK.md](RUNBOOK.md)
+for the full launch procedure, including the mandatory dress rehearsal.**
+
 Out of the box the server runs in **DRY_RUN** mode: the full engine runs
 (scheduling, accounting, API) but no transactions are signed or sent, and the
 site shows simulated data. To go live:
@@ -63,12 +71,15 @@ site shows simulated data. To go live:
 | `GET /api/leaderboard` | top 25 lockers with supply % and pot share |
 | `GET /api/payouts` | 30 most recent payouts |
 | `GET /api/lock-info` | vault address + how to lock |
+| `GET /api/locker/:wallet` | one wallet's position: locked, unlockable now, next maturity |
+| `POST /api/unlock` | self-serve unlock — body `{wallet, amountRaw, timestamp, signature}` where signature is ed25519 over `MOONBAG_UNLOCK:<wallet>:<amountRaw>:<timestamp>` |
 
 ### Key config (`server/.env`)
 
 | Var | Default | Meaning |
 | --- | --- | --- |
 | `DISTRIBUTION_INTERVAL_MS` | `120000` | reward cadence (2 min) |
+| `MIN_LOCK_HOURS` | `24` | minimum lock per deposit before it can be unlocked |
 | `MIN_DISTRIBUTION_SOL` | `0.01` | skip a round below this pot |
 | `RESERVE_SOL` | `0.05` | SOL held back for tx fees |
 | `MIN_PAYOUT_LAMPORTS` | `100000` | dust threshold — smaller payouts roll over |

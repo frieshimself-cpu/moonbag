@@ -48,6 +48,12 @@ CREATE TABLE IF NOT EXISTS meta (
   key TEXT PRIMARY KEY,
   value TEXT
 );
+
+-- One row per accepted unlock request; blocks signature replay.
+CREATE TABLE IF NOT EXISTS unlock_nonces (
+  nonce TEXT PRIMARY KEY,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
 `);
 
 export function getMeta(key: string): string | null {

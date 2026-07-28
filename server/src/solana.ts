@@ -53,6 +53,43 @@ export async function sendSolBatch(
 }
 
 /**
+ * Send $MOONBAG from the vault back to a holder (unlock). Creates the
+ * holder's token account if needed. Returns the tx signature and the
+ * destination token account (used as the ledger dedupe key, matching the
+ * key format the on-chain scanner uses for vault-outbound transfers).
+ */
+export async function sendTokens(
+  vault: Keypair,
+  mint: string,
+  destOwner: string,
+  amountRaw: number
+): Promise<{ signature: string; destAta: string }> {
+  const { createAssociatedTokenAccountIdempotentInstruction, createTransferCheckedInstruction } =
+    await import("@solana/spl-token");
+  const mintPk = new PublicKey(mint);
+  const ownerPk = new PublicKey(destOwner);
+  const sourceAta = vaultTokenAccount(vault.publicKey, mintPk);
+  const destAta = vaultTokenAccount(ownerPk, mintPk);
+
+  const tx = new Transaction().add(
+    createAssociatedTokenAccountIdempotentInstruction(vault.publicKey, destAta, ownerPk, mintPk),
+    createTransferCheckedInstruction(
+      sourceAta,
+      mintPk,
+      destAta,
+      vault.publicKey,
+      BigInt(amountRaw),
+      config.tokenDecimals
+    )
+  );
+  const signature = await sendAndConfirmTransaction(connection, tx, [vault], {
+    commitment: "confirmed",
+    maxRetries: 3,
+  });
+  return { signature, destAta: destAta.toBase58() };
+}
+
+/**
  * Claim pump.fun creator fees into the vault wallet using PumpPortal's
  * local-signing API: the transaction is built remotely but signed locally,
  * so the secret key never leaves this server.

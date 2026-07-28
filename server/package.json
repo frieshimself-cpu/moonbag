@@ -8,16 +8,21 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "DB_PATH=test-suite.db tsx src/test-suite.ts && rm -f test-suite.db*",
+    "test": "npm run test:engine && npm run test:unlock",
+    "test:engine": "DB_PATH=test-suite.db tsx src/test-suite.ts; s=$?; rm -f test-suite.db*; exit $s",
+    "test:unlock": "DB_PATH=test-unlock.db tsx src/test-unlock.ts; s=$?; rm -f test-unlock.db*; exit $s",
     "test:round": "tsx src/test-round.ts",
+    "vault:new": "tsx src/new-vault.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@solana/spl-token": "^0.4.15",
     "@solana/web3.js": "^1.95.8",
     "better-sqlite3": "^11.10.0",
     "bs58": "^6.0.0",
     "dotenv": "^16.4.7",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.12",

@@ -331,6 +331,97 @@ function setMint(mint) {
   }
 }
 
+/* ── wallet connect + self-serve unlock ─────────────────────── */
+
+const B58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+function base58Encode(bytes) {
+  let digits = [0];
+  for (const byte of bytes) {
+    let carry = byte;
+    for (let i = 0; i < digits.length; i++) {
+      const x = digits[i] * 256 + carry;
+      digits[i] = x % 58;
+      carry = Math.floor(x / 58);
+    }
+    while (carry) { digits.push(carry % 58); carry = Math.floor(carry / 58); }
+  }
+  let out = "";
+  for (const byte of bytes) { if (byte === 0) out += "1"; else break; }
+  for (let i = digits.length - 1; i >= 0; i--) out += B58_ALPHABET[digits[i]];
+  return out;
+}
+
+const walletBtn = document.getElementById("wallet-btn");
+const manageBody = document.getElementById("manage-body");
+const manageMsg = document.getElementById("manage-msg");
+let connectedWallet = null;
+
+function setMsg(text, cls = "") {
+  manageMsg.textContent = text;
+  manageMsg.className = "manage-msg " + cls;
+}
+
+async function refreshPosition() {
+  if (!connectedWallet) return;
+  try {
+    const pos = await fetchJSON(`/api/locker/${connectedWallet}`);
+    document.getElementById("m-locked").textContent = fmtTokens(pos.lockedTokens);
+    document.getElementById("m-unlockable").textContent = fmtTokens(pos.unlockableTokens);
+    document.getElementById("m-next").textContent = pos.nextUnlockAt
+      ? new Date(pos.nextUnlockAt * 1000).toLocaleString()
+      : pos.lockedRaw > 0 ? "all matured" : "—";
+  } catch {
+    setMsg("backend unreachable — position unavailable in preview", "err");
+  }
+}
+
+walletBtn.addEventListener("click", async () => {
+  const provider = window.solana;
+  if (!provider || !provider.isPhantom) {
+    setMsg("no Solana wallet found — install Phantom to manage your lock", "err");
+    manageBody.hidden = false;
+    return;
+  }
+  try {
+    const resp = await provider.connect();
+    connectedWallet = resp.publicKey.toString();
+    walletBtn.textContent = `${connectedWallet.slice(0, 4)}…${connectedWallet.slice(-4)}`;
+    manageBody.hidden = false;
+    setMsg("");
+    refreshPosition();
+    setInterval(refreshPosition, 15000);
+  } catch {
+    setMsg("wallet connection cancelled", "err");
+  }
+});
+
+document.getElementById("unlock-btn").addEventListener("click", async () => {
+  if (!connectedWallet) { setMsg("connect your wallet first", "err"); return; }
+  const tokens = parseFloat(document.getElementById("unlock-amount").value);
+  if (!tokens || tokens <= 0) { setMsg("enter an amount to unlock", "err"); return; }
+  const amountRaw = Math.round(tokens * 1e6); // pump.fun tokens have 6 decimals
+  const timestamp = Date.now();
+  const message = `MOONBAG_UNLOCK:${connectedWallet}:${amountRaw}:${timestamp}`;
+  try {
+    setMsg("sign the message in your wallet… (free — it's not a transaction)");
+    const signed = await window.solana.signMessage(new TextEncoder().encode(message), "utf8");
+    const signature = base58Encode(signed.signature);
+    const res = await fetch("/api/unlock", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ wallet: connectedWallet, amountRaw, timestamp, signature }),
+    });
+    const body = await res.json();
+    if (!res.ok) { setMsg(body.error || "unlock failed", "err"); return; }
+    setMsg(body.simulated
+      ? "unlock accepted (simulation mode — no tokens moved)"
+      : `unlocked! tx: ${body.txSignature.slice(0, 16)}…`, "ok");
+    refreshPosition();
+  } catch (e) {
+    setMsg("signing cancelled or failed", "err");
+  }
+});
+
 document.getElementById("copy-mint").addEventListener("click", () => {
   const text = document.getElementById("mint-address").textContent;
   if (!text || text.startsWith("launching")) return;

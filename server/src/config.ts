@@ -57,6 +57,9 @@ export const config = {
   /** Payouts below this many lamports are carried over to the next round. */
   minPayoutLamports: num("MIN_PAYOUT_LAMPORTS", 100_000),
 
+  /** Minimum time a deposit must stay locked before it can be unlocked. */
+  minLockHours: num("MIN_LOCK_HOURS", 24),
+
   /** Total token supply — pump.fun mints 1B with 6 decimals. */
   totalSupplyRaw: num("TOTAL_SUPPLY_RAW", 1_000_000_000 * 1e6),
   tokenDecimals: num("TOKEN_DECIMALS", 6),
