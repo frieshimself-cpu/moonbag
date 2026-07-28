@@ -74,6 +74,51 @@ export interface LockerBalance {
   amountRaw: number;
 }
 
+/**
+ * Reward-eligible balance per wallet: FIFO-net deposits that have been
+ * locked for at least `minAgeSeconds`. Unlocks consume oldest deposits
+ * first (matching the unlock module), and only the remaining deposits old
+ * enough to clear the age gate count toward reward shares.
+ */
+export function getAgedLockerBalances(
+  minAgeSeconds: number,
+  nowSec = Math.floor(Date.now() / 1000)
+): LockerBalance[] {
+  const rows = db
+    .prepare(
+      `SELECT wallet, amount_raw AS amount, COALESCE(block_time, created_at) AS t
+       FROM locks ORDER BY t ASC, id ASC`
+    )
+    .all() as { wallet: string; amount: number; t: number }[];
+
+  const deposits = new Map<string, { amount: number; t: number }[]>();
+  const unlocked = new Map<string, number>();
+  for (const r of rows) {
+    if (r.amount > 0) {
+      let list = deposits.get(r.wallet);
+      if (!list) deposits.set(r.wallet, (list = []));
+      list.push({ amount: r.amount, t: r.t });
+    } else {
+      unlocked.set(r.wallet, (unlocked.get(r.wallet) ?? 0) - r.amount);
+    }
+  }
+
+  const cutoff = nowSec - minAgeSeconds;
+  const out: LockerBalance[] = [];
+  for (const [wallet, list] of deposits) {
+    let pool = unlocked.get(wallet) ?? 0;
+    let aged = 0;
+    for (const d of list) {
+      const consumed = Math.min(d.amount, pool);
+      pool -= consumed;
+      const remaining = d.amount - consumed;
+      if (remaining > 0 && d.t <= cutoff) aged += remaining;
+    }
+    if (aged > 0) out.push({ wallet, amountRaw: aged });
+  }
+  return out.sort((a, b) => b.amountRaw - a.amountRaw);
+}
+
 /** Net locked balance per wallet (deposits minus unlocks), positive only. */
 export function getLockerBalances(): LockerBalance[] {
   const rows = db

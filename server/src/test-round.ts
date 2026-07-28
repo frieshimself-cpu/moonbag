@@ -8,8 +8,9 @@ import { runDistribution } from "./distribute.js";
 import { config } from "./config.js";
 
 const SUPPLY = config.totalSupplyRaw;
+const agedTs = Math.floor(Date.now() / 1000) - (config.minRewardAgeHours + 1) * 3600;
 const seed = db.prepare(
-  "INSERT OR IGNORE INTO locks (wallet, amount_raw, signature) VALUES (?, ?, ?)"
+  `INSERT OR IGNORE INTO locks (wallet, amount_raw, signature, block_time) VALUES (?, ?, ?, ${agedTs})`
 );
 seed.run("WalletAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", SUPPLY * 0.01, "sig-a");
 seed.run("WalletBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB", SUPPLY * 0.005, "sig-b");

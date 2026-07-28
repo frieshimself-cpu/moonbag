@@ -43,12 +43,14 @@ In `server/.env`: set `RPC_URL` to your paid RPC, keep `DRY_RUN=true` for now.
    to the vault address → within ~30s both should appear in
    `GET /api/leaderboard` and on the site.
 2. Do a few buys/sells to generate creator fees.
-3. Set `DRY_RUN=false`, restart, and watch one 5-minute round: the log should
-   show a fee claim, then payouts — and both wallets receive SOL in the right
-   ratio.
-4. Test unlock: it should FAIL (24h minimum). To verify the path end-to-end
-   without waiting, temporarily set `MIN_LOCK_HOURS=0`, unlock via the site's
-   "your lock" panel, confirm tokens come back, then set it back to `24`.
+3. For the rehearsal ONLY, set `MIN_REWARD_AGE_HOURS=0` (otherwise you'd
+   wait 23h for your test locks to start earning). Set `DRY_RUN=false`,
+   restart, and watch one 5-minute round: the log should show a fee claim,
+   then payouts — and both wallets receive SOL in the right ratio.
+4. Test unlock: with `MIN_LOCK_HOURS=24` it should FAIL. To verify the path
+   end-to-end without waiting, temporarily set `MIN_LOCK_HOURS=0`, unlock via
+   the site's "your lock" panel, and confirm tokens come back.
+5. Restore `MIN_REWARD_AGE_HOURS=23` and `MIN_LOCK_HOURS=24` afterwards.
 
 If all four behave, the machine works with real money. 
 
@@ -105,7 +107,14 @@ and a domain, while the engine runs on your server/Docker host.
 ## 8. Day-one checklist
 
 - [ ] Vault secret key exists in exactly one place (the server's `.env`).
-- [ ] `DRY_RUN=false`, `MIN_LOCK_HOURS=24`, interval 300000.
+- [ ] `DRY_RUN=false`, `MIN_LOCK_HOURS=24`, `MIN_REWARD_AGE_HOURS=23`,
+      interval 300000. NOTE: the first drops happen ~23h after the first
+      locks — that's the age gate working, tell your community up front.
+- [ ] If the creator wallet's key was EVER exposed (pasted in a chat,
+      screenshotted, etc.): put it in `CREATOR_SECRET_KEY`, generate a clean
+      `VAULT_SECRET_KEY` with `npm run setup`, and publish the CLEAN vault
+      address as the lock address. Fees sweep to the vault automatically;
+      the exposed wallet never holds locks.
 - [ ] First real locker appears on the leaderboard.
 - [ ] First distribution round pays out (check the payout feed + an explorer).
 - [ ] Tell holders: lock ONLY from a self-custody wallet, never an exchange.

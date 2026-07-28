@@ -161,7 +161,8 @@ async function refresh() {
     renderStats(stats);
     renderLeaderboard(await fetchJSON("/api/leaderboard"));
     renderFeed(await fetchJSON("/api/payouts"));
-    if (stats.tokenMint) setMint(stats.tokenMint);
+    const mint = stats.tokenMint || window.MOONBAG_TOKEN_MINT;
+    if (mint) setMint(mint);
     document.getElementById("cd-mode").textContent = stats.dryRun ? "· SIMULATION MODE ·" : "· LIVE ON-CHAIN ·";
   } catch {
     if (!live) {
@@ -171,6 +172,7 @@ async function refresh() {
     }
   }
 }
+if (window.MOONBAG_TOKEN_MINT) setMint(window.MOONBAG_TOKEN_MINT);
 refresh();
 setInterval(refresh, 10000);
 
@@ -257,7 +259,7 @@ function renderLeaderboard(rows) {
       <td>${r.wallet}</td>
       <td>${fmtTokens(r.lockedTokens)}</td>
       <td class="pct">${r.supplyPct.toFixed(2)}%</td>
-      <td class="cut">${r.shareOfPot.toFixed(2)}%</td>
+      <td class="cut">${r.earning === false ? "⏳ warming up" : r.shareOfPot.toFixed(2) + "%"}</td>
     </tr>`).join("");
 }
 

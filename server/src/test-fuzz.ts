@@ -19,7 +19,11 @@ assert.ok(config.dryRun, "fuzz test must run with DRY_RUN=true");
 let s = 123456789;
 const rand = () => ((s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
 
-const seed = db.prepare("INSERT INTO locks (wallet, amount_raw, signature) VALUES (?, ?, ?)");
+// Backdated past the reward-age gate so every fuzz wallet earns immediately.
+const agedTs = Math.floor(Date.now() / 1000) - (config.minRewardAgeHours + 1) * 3600;
+const seed = db.prepare(
+  `INSERT INTO locks (wallet, amount_raw, signature, block_time) VALUES (?, ?, ?, ${agedTs})`
+);
 const wallets: { wallet: string; amount: number }[] = [];
 for (let i = 0; i < 50; i++) {
   // Amounts spanning 6 orders of magnitude, including dust-tier lockers.

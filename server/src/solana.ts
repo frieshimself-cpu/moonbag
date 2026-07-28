@@ -90,7 +90,26 @@ export async function sendTokens(
 }
 
 /**
- * Claim pump.fun creator fees into the vault wallet using PumpPortal's
+ * Sweep a wallet's SOL to the vault, keeping a small buffer for future
+ * claim-transaction fees. Used when the pump.fun creator wallet is separate
+ * from the vault: claimed fees move to the vault within the same cycle.
+ */
+export async function sweepSolToVault(from: Keypair, vault: PublicKey): Promise<string | null> {
+  const balance = await connection.getBalance(from.publicKey, "confirmed");
+  const keep = 5_000_000; // 0.005 SOL stays behind for claim tx fees
+  const amount = balance - keep;
+  if (amount < 1_000_000) return null; // nothing meaningful to sweep
+  const tx = new Transaction().add(
+    SystemProgram.transfer({ fromPubkey: from.publicKey, toPubkey: vault, lamports: amount })
+  );
+  return sendAndConfirmTransaction(connection, tx, [from], {
+    commitment: "confirmed",
+    maxRetries: 3,
+  });
+}
+
+/**
+ * Claim pump.fun creator fees into the claiming wallet using PumpPortal's
  * local-signing API: the transaction is built remotely but signed locally,
  * so the secret key never leaves this server.
  */

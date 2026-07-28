@@ -1,6 +1,6 @@
 import { config } from "./config.js";
-import { db, getLockerBalances } from "./db.js";
-import { claimCreatorFees, getVaultSolBalance, sendSolBatch, LAMPORTS_PER_SOL } from "./solana.js";
+import { db, getAgedLockerBalances } from "./db.js";
+import { claimCreatorFees, getVaultSolBalance, sendSolBatch, sweepSolToVault, LAMPORTS_PER_SOL } from "./solana.js";
 
 const insertDistribution = db.prepare(
   `INSERT INTO distributions (started_at, pot_lamports, total_locked_raw, locker_count, status, note)
@@ -38,21 +38,34 @@ export async function runDistribution(): Promise<void> {
   }
 }
 
+/** Claim creator fees; if a separate creator wallet is used, sweep to vault. */
+async function claimAndSweep(): Promise<void> {
+  const claimer = config.creatorKeypair ?? config.vaultKeypair;
+  if (!claimer || !config.vaultKeypair) return;
+  const sig = await claimCreatorFees(claimer);
+  if (sig) console.log(`[claim] creator fees claimed: ${sig}`);
+  if (config.creatorKeypair) {
+    const sweep = await sweepSolToVault(config.creatorKeypair, config.vaultKeypair.publicKey);
+    if (sweep) console.log(`[claim] swept creator wallet → vault: ${sweep}`);
+  }
+}
+
 async function distributeOnce(): Promise<void> {
-  const lockers = getLockerBalances();
+  // Only deposits older than the reward-age gate earn a share.
+  const lockers = getAgedLockerBalances(config.minRewardAgeHours * 3600);
   const totalLocked = lockers.reduce((s, l) => s + l.amountRaw, 0);
 
   if (lockers.length === 0) {
-    insertDistribution.run(now(), 0, 0, 0, "skipped", "no lockers");
-    console.log("[distribute] skipped — no locked supply yet");
+    insertDistribution.run(now(), 0, 0, 0, "skipped",
+      `no eligible lockers (locks must age ${config.minRewardAgeHours}h)`);
+    console.log(`[distribute] skipped — no locks past the ${config.minRewardAgeHours}h age gate yet`);
     return;
   }
 
   // 1. Claim creator fees. Failure is non-fatal: distribute what's on hand.
-  if (!config.dryRun && config.vaultKeypair) {
+  if (!config.dryRun) {
     try {
-      const sig = await claimCreatorFees(config.vaultKeypair);
-      console.log(`[distribute] claimed creator fees: ${sig}`);
+      await claimAndSweep();
     } catch (e: any) {
       console.warn("[distribute] fee claim failed (continuing):", e.message ?? e);
     }
@@ -152,8 +165,7 @@ export function startFeeClaimer(): void {
     if (claiming) return;
     claiming = true;
     try {
-      const sig = await claimCreatorFees(config.vaultKeypair!);
-      if (sig) console.log(`[claim] creator fees claimed: ${sig}`);
+      await claimAndSweep();
     } catch (e: any) {
       // Routine when nothing has accrued yet — log quietly and move on.
       console.warn("[claim] claim attempt failed (will retry):", String(e.message ?? e).slice(0, 160));

@@ -11,3 +11,10 @@
  * Until a backend is reachable the site runs in demo/preview mode.
  */
 window.MOONBAG_API_BASE = "";
+
+/**
+ * The $MOONBAG contract address (token mint). Shown as the CA on the site
+ * and used for the pump.fun buy links. When a backend is connected its
+ * TOKEN_MINT takes precedence over this value.
+ */
+window.MOONBAG_TOKEN_MINT = "FnfYwfnSkbFLiKQfqh5w7AQ6jFmeP9Lq4JX9TmY8pump";

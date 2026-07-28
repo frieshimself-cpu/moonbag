@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { PublicKey } from "@solana/web3.js";
 import { config } from "./config.js";
-import { db, getLockerBalances, getTotals } from "./db.js";
+import { db, getAgedLockerBalances, getLockerBalances, getTotals } from "./db.js";
 import { nextDistributionAt } from "./distribute.js";
 import { vaultTokenAccount, LAMPORTS_PER_SOL } from "./solana.js";
 import { getLockStatus, requestUnlock } from "./unlock.js";
@@ -12,12 +12,17 @@ const shorten = (w: string) => `${w.slice(0, 4)}…${w.slice(-4)}`;
 
 api.get("/stats", (_req, res) => {
   const { locked, paid, lastDist } = getTotals();
+  const eligible = getAgedLockerBalances(config.minRewardAgeHours * 3600);
+  const eligibleRaw = eligible.reduce((s, l) => s + l.amountRaw, 0);
   res.json({
     ticker: "$MOONBAG",
     tokenMint: config.tokenMint || null,
     dryRun: config.dryRun,
     intervalMs: config.distributionIntervalMs,
     minLockHours: config.minLockHours,
+    minRewardAgeHours: config.minRewardAgeHours,
+    eligibleLockedRaw: eligibleRaw,
+    eligibleLockedPct: (eligibleRaw / config.totalSupplyRaw) * 100,
     nextDistributionAt: nextDistributionAt(),
     totalLockedRaw: locked.total,
     totalLockedPct: (locked.total / config.totalSupplyRaw) * 100,
@@ -37,7 +42,12 @@ api.get("/stats", (_req, res) => {
 
 api.get("/leaderboard", (_req, res) => {
   const lockers = getLockerBalances().slice(0, 25);
-  const total = getLockerBalances().reduce((s, l) => s + l.amountRaw, 0);
+  // Pot shares come from AGED balances only — fresh locks show 0% ("warming
+  // up") until they clear the reward-age gate.
+  const aged = new Map(
+    getAgedLockerBalances(config.minRewardAgeHours * 3600).map((l) => [l.wallet, l.amountRaw])
+  );
+  const totalAged = [...aged.values()].reduce((s, v) => s + v, 0);
   res.json(
     lockers.map((l, i) => ({
       rank: i + 1,
@@ -45,7 +55,8 @@ api.get("/leaderboard", (_req, res) => {
       lockedRaw: l.amountRaw,
       lockedTokens: l.amountRaw / 10 ** config.tokenDecimals,
       supplyPct: (l.amountRaw / config.totalSupplyRaw) * 100,
-      shareOfPot: total > 0 ? (l.amountRaw / total) * 100 : 0,
+      shareOfPot: totalAged > 0 ? ((aged.get(l.wallet) ?? 0) / totalAged) * 100 : 0,
+      earning: (aged.get(l.wallet) ?? 0) > 0,
     }))
   );
 });

@@ -21,8 +21,9 @@ This repo contains the full stack:
 1. **Lock** — a holder sends $MOONBAG to the vault wallet. The scanner watches
    the vault's token account on-chain and credits the *sending* wallet with the
    locked amount within ~30 seconds. Sending more later adds to the position.
-   Every deposit has a **24-hour minimum lock** (configurable via
-   `MIN_LOCK_HOURS`). After that it can be unlocked self-serve: the holder
+   Each deposit starts **earning rewards 23 hours after it lands**
+   (`MIN_REWARD_AGE_HOURS`) — so locking right before a drop earns nothing —
+   and has a **24-hour minimum lock** (configurable via `MIN_LOCK_HOURS`). After that it can be unlocked self-serve: the holder
    signs a message with their wallet on the site (free, proves ownership), and
    the vault sends the tokens back. Unlocks consume the oldest deposits first,
    so topping up never resets the clock on earlier tokens.
@@ -80,6 +81,9 @@ site shows simulated data. To go live:
 | --- | --- | --- |
 | `DISTRIBUTION_INTERVAL_MS` | `300000` | reward cadence (5 min) |
 | `MIN_LOCK_HOURS` | `24` | minimum lock per deposit before it can be unlocked |
+| `MIN_REWARD_AGE_HOURS` | `23` | a deposit must be locked this long before it starts earning |
+| `CLAIM_INTERVAL_MS` | `60000` | creator fees auto-claimed every minute |
+| `CREATOR_SECRET_KEY` | – | optional separate creator wallet; fees are swept to the vault each cycle |
 | `MIN_DISTRIBUTION_SOL` | `0.01` | skip a round below this pot |
 | `RESERVE_SOL` | `0.05` | SOL held back for tx fees |
 | `MIN_PAYOUT_LAMPORTS` | `100000` | dust threshold — smaller payouts roll over |

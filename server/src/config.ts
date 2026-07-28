@@ -37,10 +37,20 @@ export const config = {
   tokenMint: process.env.TOKEN_MINT ?? "",
 
   /**
-   * Vault wallet. Must be the pump.fun *creator* wallet so it can claim
-   * creator fees, and it is also the wallet lockers send tokens to.
+   * Vault wallet: where holders send tokens to lock, and where payouts are
+   * sent from. If CREATOR_SECRET_KEY is unset, this must also be the
+   * pump.fun creator wallet (it then claims creator fees itself).
    */
   vaultKeypair: parseKeypair(process.env.VAULT_SECRET_KEY),
+
+  /**
+   * Optional separate pump.fun creator wallet. Set this when the token was
+   * created from a different wallet than the vault — e.g. when the creator
+   * key was ever exposed and must not hold the locked tokens. Fees are
+   * claimed with this key and immediately swept to the vault each cycle,
+   * so the exposed wallet never holds more than ~1 minute of fees.
+   */
+  creatorKeypair: parseKeypair(process.env.CREATOR_SECRET_KEY),
 
   /** How often rewards are distributed. Every 5 minutes. */
   distributionIntervalMs: num("DISTRIBUTION_INTERVAL_MS", 300_000),
@@ -66,6 +76,12 @@ export const config = {
 
   /** Minimum time a deposit must stay locked before it can be unlocked. */
   minLockHours: num("MIN_LOCK_HOURS", 24),
+
+  /**
+   * A deposit must be locked this long before it starts EARNING rewards.
+   * Stops lock-right-before-the-drop gaming: fresh locks sit out until aged.
+   */
+  minRewardAgeHours: num("MIN_REWARD_AGE_HOURS", 23),
 
   /** Total token supply — pump.fun mints 1B with 6 decimals. */
   totalSupplyRaw: num("TOTAL_SUPPLY_RAW", 1_000_000_000 * 1e6),

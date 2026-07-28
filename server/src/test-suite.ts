@@ -21,7 +21,14 @@ const A = "WalletAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 const B = "WalletBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB";
 const C = "WalletCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC";
 
-const seed = db.prepare("INSERT INTO locks (wallet, amount_raw, signature) VALUES (?, ?, ?)");
+// Seeds are backdated past the reward-age gate so they earn immediately.
+const aged = Math.floor(Date.now() / 1000) - (config.minRewardAgeHours + 1) * 3600;
+const seed = db.prepare(
+  `INSERT INTO locks (wallet, amount_raw, signature, block_time) VALUES (?, ?, ?, ${aged})`
+);
+const seedFresh = db.prepare(
+  "INSERT INTO locks (wallet, amount_raw, signature, block_time) VALUES (?, ?, ?, unixepoch())"
+);
 const lastDist = () =>
   db.prepare("SELECT * FROM distributions ORDER BY id DESC LIMIT 1").get() as any;
 const payoutsFor = (distId: number) =>
@@ -35,20 +42,25 @@ assert.equal(lastDist().status, "skipped", "empty round should be skipped");
 assert.equal(db.prepare("SELECT COUNT(*) c FROM payouts").get()!["c" as never], 0);
 console.log("✓ 1. round with no lockers is skipped, nothing paid");
 
-/* ── 2. proportionality ──────────────────────────────────────── */
-seed.run(A, SUPPLY * 0.01, "sig-a");      // locks 1.00% of supply
-seed.run(B, SUPPLY * 0.005, "sig-b");     // locks 0.50% of supply
-seed.run(C, SUPPLY * 0.0000155, "sig-c"); // tiny locker → dust territory
+/* ── 2. proportionality + fresh locks excluded by the age gate ── */
+const FRESH = "WalletFRESHFRESHFRESHFRESHFRESHFRESHFRESHFRES";
+seed.run(A, SUPPLY * 0.01, "sig-a");      // locks 1.00% of supply, aged
+seed.run(B, SUPPLY * 0.005, "sig-b");     // locks 0.50% of supply, aged
+seed.run(C, SUPPLY * 0.0000155, "sig-c"); // tiny aged locker → dust territory
+seedFresh.run(FRESH, SUPPLY * 0.02, "sig-fresh"); // BIG lock, but brand new
 
 await runDistribution();
 const d2 = lastDist();
 assert.equal(d2.status, "simulated");
+assert.equal(d2.locker_count, 3, "fresh lock must not count as eligible");
 const p2 = payoutsFor(d2.id);
 const payA = p2.find((p) => p.wallet === A);
 const payB = p2.find((p) => p.wallet === B);
 assert.ok(payA && payB, "A and B must both be paid");
+assert.equal(p2.find((p) => p.wallet === FRESH), undefined,
+  "a lock younger than the age gate must earn nothing, however big");
 assert.equal(payA.lamports, 2 * payB.lamports, "1% locker must earn exactly 2× the 0.5% locker");
-console.log(`✓ 2. proportionality exact: A=${payA.lamports} B=${payB.lamports} lamports`);
+console.log(`✓ 2. proportionality exact (A=${payA.lamports} B=${payB.lamports}); fresh 2% lock excluded until aged`);
 
 /* ── 3. dust carry-over ──────────────────────────────────────── */
 assert.equal(p2.find((p) => p.wallet === C), undefined, "C's dust share must not be paid yet");
