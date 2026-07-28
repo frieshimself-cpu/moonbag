@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>$MOONBAG — nobody holds anymore. so we pay the ones who do.</title>
+<meta name="description" content="$MOONBAG redirects 100% of pump.fun creator rewards to holders who lock supply. Paid out every 2 minutes, proportional to what you lock." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+<div class="nebula nebula-a"></div>
+<div class="nebula nebula-b"></div>
+<div class="grain"></div>
+
+<!-- ══════════════ NAV ══════════════ -->
+<nav class="nav">
+  <a class="nav-logo" href="#top">
+    <span class="nav-bag">💰</span>
+    <span class="nav-name">MOONBAG</span>
+  </a>
+  <div class="nav-links">
+    <a href="#how">How it works</a>
+    <a href="#math">The math</a>
+    <a href="#board">Leaderboard</a>
+    <a href="#faq">FAQ</a>
+  </div>
+  <a class="btn btn-gold btn-small" id="nav-buy" href="https://pump.fun" target="_blank" rel="noopener">Buy $MOONBAG</a>
+</nav>
+
+<!-- ══════════════ HERO ══════════════ -->
+<header class="hero" id="top">
+  <div class="hero-inner">
+    <div class="hero-copy">
+      <div class="hero-eyebrow reveal"><span class="pulse-dot"></span>CREATOR REWARDS · REDISTRIBUTED EVERY 2 MINUTES</div>
+      <h1 class="hero-title">
+        <span class="line reveal">NOBODY</span>
+        <span class="line reveal">HOLDS</span>
+        <span class="line reveal strike-wrap"><s>ANYMORE.</s></span>
+      </h1>
+      <p class="hero-sub reveal">So every pump.fun creator reward this coin earns goes to the people who <b>lock their bags</b>. Every 2 minutes. Forever. Proportional to what you lock — lock more, earn more.</p>
+      <div class="hero-cta reveal">
+        <a class="btn btn-gold" id="hero-buy" href="https://pump.fun" target="_blank" rel="noopener">Buy on pump.fun <span class="btn-arrow">→</span></a>
+        <a class="btn btn-ghost" href="#how">Lock &amp; earn</a>
+      </div>
+      <div class="hero-mint reveal">
+        <span class="mint-label">CA:</span>
+        <code id="mint-address">launching soon…</code>
+        <button id="copy-mint" class="copy-btn" title="Copy contract address">⧉</button>
+      </div>
+    </div>
+
+    <div class="hero-moon-wrap">
+      <div class="orbit-ring orbit-1"></div>
+      <div class="orbit-ring orbit-2"></div>
+      <div class="moon">
+        <div class="crater c1"></div><div class="crater c2"></div>
+        <div class="crater c3"></div><div class="crater c4"></div>
+        <div class="crater c5"></div>
+        <div class="moon-flag">
+          <div class="flag-pole"></div>
+          <div class="flag-cloth">$MOONBAG</div>
+        </div>
+        <div class="moon-bag">💰</div>
+      </div>
+      <div class="sat sat-1">🔒</div>
+      <div class="sat sat-2">◎</div>
+      <div class="sat sat-3">💎</div>
+    </div>
+  </div>
+  <div class="scroll-hint"><span></span></div>
+</header>
+
+<!-- ══════════════ TICKER ══════════════ -->
+<div class="ticker-band">
+  <div class="ticker-track" id="ticker-track"></div>
+</div>
+
+<!-- ══════════════ LIVE / COUNTDOWN ══════════════ -->
+<section class="section live" id="live">
+  <div class="live-grid">
+    <div class="countdown-card reveal">
+      <div class="cd-label">NEXT REWARD DROP</div>
+      <div class="cd-ring-wrap">
+        <svg class="cd-ring" viewBox="0 0 200 200">
+          <circle class="cd-track" cx="100" cy="100" r="88" />
+          <circle class="cd-progress" id="cd-progress" cx="100" cy="100" r="88" />
+        </svg>
+        <div class="cd-time" id="cd-time">2:00</div>
+      </div>
+      <div class="cd-sub">creator rewards → lockers, <b>every 120 seconds</b></div>
+      <div class="cd-mode" id="cd-mode"></div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-tile reveal">
+        <div class="stat-value"><span data-count id="stat-locked">0</span><span class="stat-unit">%</span></div>
+        <div class="stat-name">of supply locked</div>
+        <div class="stat-bar"><div class="stat-bar-fill" id="locked-bar"></div></div>
+      </div>
+      <div class="stat-tile reveal">
+        <div class="stat-value"><span data-count id="stat-lockers">0</span></div>
+        <div class="stat-name">diamond-hand lockers</div>
+      </div>
+      <div class="stat-tile reveal">
+        <div class="stat-value"><span data-count id="stat-sol">0</span><span class="stat-unit">◎</span></div>
+        <div class="stat-name">SOL distributed to lockers</div>
+      </div>
+      <div class="stat-tile reveal">
+        <div class="stat-value"><span data-count id="stat-payouts">0</span></div>
+        <div class="stat-name">payouts sent</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ HOW IT WORKS ══════════════ -->
+<section class="section" id="how">
+  <h2 class="section-title reveal">Paper hands fund <span class="grad-text">diamond hands</span></h2>
+  <p class="section-sub reveal">Every trade on pump.fun pays the creator a fee. Normally that's the dev's exit liquidity. Here, the creator wallet is a <b>distribution machine</b> — it claims the fees and immediately splits them among lockers.</p>
+
+  <div class="steps">
+    <div class="step-card reveal">
+      <div class="step-num">01</div>
+      <div class="step-icon lock-anim">🔒</div>
+      <h3>Lock your bag</h3>
+      <p>Send any amount of $MOONBAG to the vault wallet. That's your lock — it's on-chain, public, and counted within seconds.</p>
+    </div>
+    <div class="step-card reveal">
+      <div class="step-num">02</div>
+      <div class="step-icon accrue-anim">⛲</div>
+      <h3>Fees pile up</h3>
+      <p>Every buy and sell generates creator rewards. The vault claims them automatically — nobody touches the pot, the code runs the show.</p>
+    </div>
+    <div class="step-card reveal">
+      <div class="step-num">03</div>
+      <div class="step-icon pay-anim">◎</div>
+      <h3>Get paid in SOL</h3>
+      <p>Every 2 minutes the pot is split by locked share and sent straight to your wallet. Lock 1% of supply? You earn 2× someone who locked 0.5%.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ THE MATH ══════════════ -->
+<section class="section" id="math">
+  <h2 class="section-title reveal">The math is <span class="grad-text">brutally simple</span></h2>
+  <div class="math-grid">
+    <div class="math-formula reveal">
+      <div class="formula-box">
+        <span class="f-you">your locked bag</span>
+        <span class="f-div">÷</span>
+        <span class="f-all">all locked bags</span>
+        <span class="f-eq">=</span>
+        <span class="f-cut">your cut of every drop</span>
+      </div>
+      <p>No tiers. No vesting cliffs. No staking contract to get rugged by. Pure pro-rata — the chain does the ranking.</p>
+    </div>
+    <div class="calc-card reveal">
+      <div class="calc-title">💰 what's my cut?</div>
+      <label class="calc-label">You lock <b id="calc-you">1.00%</b> of supply</label>
+      <input type="range" id="calc-slider" min="1" max="500" value="100" />
+      <label class="calc-label">Everyone else locked <b id="calc-others">20%</b> of supply</label>
+      <input type="range" id="calc-others-slider" min="1" max="80" value="20" />
+      <div class="calc-result">
+        <div class="calc-row"><span>Your share of every drop</span><b id="calc-share">4.76%</b></div>
+        <div class="calc-row"><span>If a drop pays 1 ◎, you get</span><b id="calc-sol">0.0476 ◎</b></div>
+        <div class="calc-row dim"><span>Drops per day</span><b>720</b></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ LEADERBOARD ══════════════ -->
+<section class="section" id="board">
+  <h2 class="section-title reveal">Diamond hands <span class="grad-text">leaderboard</span></h2>
+  <p class="section-sub reveal">Top lockers by locked supply. This is the whole cap table of conviction.</p>
+  <div class="board-wrap reveal">
+    <table class="board">
+      <thead>
+        <tr><th>#</th><th>wallet</th><th>locked</th><th>% supply</th><th>cut of pot</th></tr>
+      </thead>
+      <tbody id="board-body"></tbody>
+    </table>
+  </div>
+
+  <div class="feed-wrap reveal">
+    <div class="feed-head"><span class="pulse-dot"></span> LIVE PAYOUT FEED</div>
+    <div class="feed" id="feed"></div>
+  </div>
+</section>
+
+<!-- ══════════════ FAQ ══════════════ -->
+<section class="section" id="faq">
+  <h2 class="section-title reveal">FAQ</h2>
+  <div class="faq-list">
+    <details class="faq-item reveal">
+      <summary>How do I lock?</summary>
+      <p>Send $MOONBAG from your wallet to the vault address (shown above once live). The wallet you send from is the wallet that gets paid. Locking more later just adds to your position.</p>
+    </details>
+    <details class="faq-item reveal">
+      <summary>Where do the rewards come from?</summary>
+      <p>pump.fun pays token creators a fee on trading volume. 100% of those creator rewards are claimed by the vault and redistributed to lockers. No team cut is taken from the pot beyond a tiny SOL reserve for transaction fees.</p>
+    </details>
+    <details class="faq-item reveal">
+      <summary>What if my payout is tiny?</summary>
+      <p>Dust payouts aren't lost — anything below the payout minimum rolls over and accumulates until it's worth sending. You'll get it.</p>
+    </details>
+    <details class="faq-item reveal">
+      <summary>Can I unlock?</summary>
+      <p>Unlocks are supported by the vault — but every unlock reduces your share of every future drop the moment it happens. That's the point.</p>
+    </details>
+    <details class="faq-item reveal">
+      <summary>Is this financial advice?</summary>
+      <p>No. This is a memecoin. Locked tokens are transferred to a vault wallet — that requires trusting the vault operator. Assume anything you put in could go to zero. Never lock more than you can afford to lose entirely.</p>
+    </details>
+  </div>
+</section>
+
+<!-- ══════════════ FOOTER ══════════════ -->
+<footer class="footer">
+  <div class="footer-moon">🌕</div>
+  <div class="footer-title">$MOONBAG</div>
+  <div class="footer-tag">nobody holds anymore. so we pay the ones who do.</div>
+  <div class="footer-links">
+    <a id="footer-buy" href="https://pump.fun" target="_blank" rel="noopener">pump.fun</a>
+    <a href="#board">leaderboard</a>
+    <a href="#faq">faq</a>
+  </div>
+  <div class="footer-disclaimer">$MOONBAG is a memecoin experiment, not an investment product. Locking transfers tokens to a vault wallet and requires trust in its operator. Rewards depend entirely on trading volume and may be zero. Do your own research.</div>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
