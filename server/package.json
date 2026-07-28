@@ -13,6 +13,7 @@
     "test:engine": "DB_PATH=test-suite.db tsx src/test-suite.ts; s=$?; rm -f test-suite.db*; exit $s",
     "test:unlock": "DB_PATH=test-unlock.db tsx src/test-unlock.ts; s=$?; rm -f test-unlock.db*; exit $s",
     "test:round": "tsx src/test-round.ts",
+    "setup": "tsx src/setup.ts",
     "vault:new": "tsx src/new-vault.ts",
     "typecheck": "tsc --noEmit"
   },

@@ -12,17 +12,23 @@ token — do NOT skip it. Steps 6–8 are the real launch.
 ## 1. Create the vault wallet
 
 ```bash
-cd server && npm install && npm run vault:new
+cd server && npm install && npm run setup
 ```
 
-- Put the printed secret key in `server/.env` as `VAULT_SECRET_KEY`.
+This creates `server/.env`, generates the vault keypair, and writes the
+secret key directly into it — the key never appears on screen or leaves the
+machine. It prints the vault's PUBLIC address and your next steps.
+
 - **Never** share the secret key, paste it in chats, or commit it. Anyone who
-  has it controls all locked tokens and the reward pot.
-- Send ~0.3 SOL to the vault's public key (fees + reserve).
+  has it controls all locked tokens and the reward pot. Even a "throwaway"
+  wallet stops being throwaway the moment other people's tokens are locked
+  in it.
+- Send ~0.3 SOL to the printed vault address (fees + reserve).
 
 ## 2. Configure
 
 In `server/.env`: set `RPC_URL` to your paid RPC, keep `DRY_RUN=true` for now.
+(`npm run vault:new` still exists if you prefer generating a keypair manually.)
 
 ## 3. Dress-rehearsal token
 
