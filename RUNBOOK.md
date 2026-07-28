@@ -62,6 +62,24 @@ the real ledger). Keep the same vault wallet.
 Deploy the server publicly (it serves the site itself). Put the mint address
 everywhere; the site picks it up automatically from `/api/stats`.
 
+Two easy options:
+
+**Docker (any host):**
+```bash
+docker build -t moonbag .
+docker run -d --restart unless-stopped -p 3000:3000 \
+  -v moonbag-data:/data --env-file server/.env moonbag
+```
+
+**Bare Node with pm2 (any VPS):**
+```bash
+cd server && npm ci && npm run build
+npm i -g pm2
+pm2 start dist/index.js --name moonbag && pm2 save && pm2 startup
+```
+
+Put nginx/Caddy or a Cloudflare tunnel in front for HTTPS and a domain.
+
 ## 8. Day-one checklist
 
 - [ ] Vault secret key exists in exactly one place (the server's `.env`).

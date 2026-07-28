@@ -104,12 +104,20 @@ async function distributeOnce(): Promise<void> {
       const sig = await sendSolBatch(config.vaultKeypair, batch.map((p) => ({ to: p.wallet, lamports: p.lamports })));
       for (const p of batch) insertPayout.run(distId, p.wallet, p.lamports, p.share, sig, "paid");
     } catch (e: any) {
-      console.error("[distribute] batch send failed:", e.message ?? e);
-      // Return the failed batch to carry so nobody's share is lost.
+      console.error("[distribute] batch send failed, retrying individually:", e.message ?? e);
+      // The batch tx is atomic, so one bad recipient fails all 8. Retry each
+      // transfer solo so the good ones still get paid; only the genuinely
+      // failing ones return to carry (nothing is ever lost).
       for (const p of batch) {
-        insertPayout.run(distId, p.wallet, p.lamports, p.share, null, "failed");
-        const carried = (getCarry.get(p.wallet) as { lamports: number } | undefined)?.lamports ?? 0;
-        setCarry.run(p.wallet, carried + p.lamports);
+        try {
+          const sig = await sendSolBatch(config.vaultKeypair, [{ to: p.wallet, lamports: p.lamports }]);
+          insertPayout.run(distId, p.wallet, p.lamports, p.share, sig, "paid");
+        } catch (e2: any) {
+          console.error(`[distribute] payout to ${p.wallet.slice(0, 8)}… failed:`, e2.message ?? e2);
+          insertPayout.run(distId, p.wallet, p.lamports, p.share, null, "failed");
+          const carried = (getCarry.get(p.wallet) as { lamports: number } | undefined)?.lamports ?? 0;
+          setCarry.run(p.wallet, carried + p.lamports);
+        }
       }
     }
   }

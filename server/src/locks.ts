@@ -25,22 +25,32 @@ export async function scanLocks(): Promise<number> {
   const ata = vaultTokenAccount(vault, mint);
   const lastSeen = getMeta("last_lock_signature");
 
-  const sigs = await connection.getSignaturesForAddress(
-    ata,
-    { until: lastSeen ?? undefined, limit: 200 },
-    "confirmed"
-  );
+  // Collect EVERY signature newer than lastSeen, paginating backwards so a
+  // burst of >1000 deposits between scans can never be silently skipped.
+  const sigs: Awaited<ReturnType<typeof connection.getSignaturesForAddress>> = [];
+  let before: string | undefined;
+  for (;;) {
+    const page = await connection.getSignaturesForAddress(
+      ata,
+      { until: lastSeen ?? undefined, before, limit: 1000 },
+      "confirmed"
+    );
+    sigs.push(...page);
+    if (page.length < 1000 || sigs.length >= 20_000) break;
+    before = page[page.length - 1].signature;
+  }
   if (sigs.length === 0) return 0;
 
   // Process oldest-first so a crash mid-scan never skips transactions.
   let recorded = 0;
   for (const sigInfo of [...sigs].reverse()) {
-    if (sigInfo.err) continue;
-    const tx = await connection.getParsedTransaction(sigInfo.signature, {
-      maxSupportedTransactionVersion: 0,
-      commitment: "confirmed",
-    });
-    if (tx) recorded += recordTransfersFromTx(tx, sigInfo.signature, ata, vault);
+    if (!sigInfo.err) {
+      const tx = await connection.getParsedTransaction(sigInfo.signature, {
+        maxSupportedTransactionVersion: 0,
+        commitment: "confirmed",
+      });
+      if (tx) recorded += recordTransfersFromTx(tx, sigInfo.signature, ata, vault);
+    }
     setMeta("last_lock_signature", sigInfo.signature);
   }
   return recorded;
@@ -58,6 +68,7 @@ function recordTransfersFromTx(
   ];
 
   let recorded = 0;
+  const seen = new Map<string, number>(); // occurrence counter per (sig, source)
   for (const ix of instructions) {
     const parsed = (ix as ParsedInstruction).parsed;
     if (!parsed || (ix as ParsedInstruction).program !== "spl-token") continue;
@@ -71,8 +82,13 @@ function recordTransfersFromTx(
     const authority: string | undefined = info.authority ?? info.multisigAuthority;
 
     if (info.destination === vaultAta.toBase58() && authority && authority !== vault.toBase58()) {
-      // Deposit into the vault → lock credited to the sender.
-      insertLock.run(authority, amountRaw, `${signature}:${info.source}`, tx.slot, tx.blockTime ?? null);
+      // Deposit into the vault → lock credited to the sender. The occurrence
+      // suffix keeps two same-source transfers in one tx from colliding,
+      // while first occurrences keep the plain key (stable across rescans).
+      const base = `${signature}:${info.source}`;
+      const n = seen.get(base) ?? 0;
+      seen.set(base, n + 1);
+      insertLock.run(authority, amountRaw, n === 0 ? base : `${base}#${n}`, tx.slot, tx.blockTime ?? null);
       recorded++;
     } else if (info.source === vaultAta.toBase58() && authority === vault.toBase58()) {
       // Vault sending tokens back → unlock. Attribute to destination owner
@@ -95,15 +111,25 @@ function resolveOwner(tx: ParsedTransactionWithMeta, tokenAccount: string): stri
   return balances.find((b) => b.accountIndex === index)?.owner ?? null;
 }
 
+let scanning = false;
+
 export function startLockScanner(): void {
   if (!config.tokenMint || !config.vaultKeypair) {
     console.log("[locks] TOKEN_MINT/VAULT_SECRET_KEY not set — lock scanner idle");
     return;
   }
-  const run = () =>
-    scanLocks()
-      .then((n) => n > 0 && console.log(`[locks] recorded ${n} lock event(s)`))
-      .catch((e) => console.error("[locks] scan failed:", e.message ?? e));
+  const run = async () => {
+    if (scanning) return; // a slow RPC must not cause overlapping scans
+    scanning = true;
+    try {
+      const n = await scanLocks();
+      if (n > 0) console.log(`[locks] recorded ${n} lock event(s)`);
+    } catch (e: any) {
+      console.error("[locks] scan failed:", e.message ?? e);
+    } finally {
+      scanning = false;
+    }
+  };
   run();
   setInterval(run, config.lockScanIntervalMs);
 }
