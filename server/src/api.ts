@@ -1,10 +1,9 @@
 import { Router } from "express";
 import { PublicKey } from "@solana/web3.js";
 import { config } from "./config.js";
-import { db, getAgedLockerBalances, getLockerBalances, getTotals } from "./db.js";
+import { db, getAgedLockerBalances, getLockerBalances, getTotals, getWalletLocks } from "./db.js";
 import { nextDistributionAt } from "./distribute.js";
-import { vaultTokenAccount, LAMPORTS_PER_SOL } from "./solana.js";
-import { getLockStatus, requestUnlock } from "./unlock.js";
+import { LAMPORTS_PER_SOL } from "./solana.js";
 
 export const api = Router();
 
@@ -81,22 +80,21 @@ api.get("/payouts", (_req, res) => {
 });
 
 api.get("/lock-info", (_req, res) => {
-  let vault: string | null = null;
-  let vaultAta: string | null = null;
-  if (config.vaultKeypair && config.tokenMint) {
-    vault = config.vaultKeypair.publicKey.toBase58();
-    vaultAta = vaultTokenAccount(config.vaultKeypair.publicKey, new PublicKey(config.tokenMint)).toBase58();
-  }
   res.json({
-    vaultWallet: vault,
-    vaultTokenAccount: vaultAta,
+    lockWith: "streamflow",
+    lockUrl: "https://app.streamflow.finance/token-lock",
     tokenMint: config.tokenMint || null,
     minLockHours: config.minLockHours,
-    how: `Send $MOONBAG to the vault wallet to lock. Rewards are paid in SOL to the wallet you sent from, every distribution round, proportional to your locked amount. Each deposit can be unlocked ${config.minLockHours}h after it lands.`,
+    minRewardAgeHours: config.minRewardAgeHours,
+    how:
+      `Lock $MOONBAG on Streamflow (non-custodial — tokens sit in Streamflow's ` +
+      `on-chain escrow, we never touch them). Locks with a duration of at least ` +
+      `${config.minLockHours}h start earning ${config.minRewardAgeHours}h after creation; ` +
+      `SOL is paid to the lock's recipient wallet every round, proportional to the locked amount.`,
   });
 });
 
-/** A single wallet's lock position: total locked, unlockable now, next maturity. */
+/** A single wallet's Streamflow lock position and per-contract detail. */
 api.get("/locker/:wallet", (req, res) => {
   try {
     new PublicKey(req.params.wallet);
@@ -104,34 +102,33 @@ api.get("/locker/:wallet", (req, res) => {
     res.status(400).json({ error: "invalid wallet address" });
     return;
   }
-  const s = getLockStatus(req.params.wallet);
+  const now = Math.floor(Date.now() / 1000);
+  const minDur = config.minLockHours * 3600;
+  const warmup = config.minRewardAgeHours * 3600;
+  const contracts = getWalletLocks(req.params.wallet).map((c) => {
+    const remaining = c.depositedRaw - c.withdrawnRaw;
+    const active = c.canceledAt === 0 && remaining > 0 && c.endTime > now;
+    const longEnough = c.endTime - c.createdAt >= minDur;
+    const warmedUp = now - c.createdAt >= warmup;
+    return {
+      contract: c.contract,
+      lockedTokens: remaining / 10 ** config.tokenDecimals,
+      createdAt: c.createdAt,
+      unlocksAt: c.endTime,
+      status: !active ? "inactive"
+        : !longEnough ? `too short (needs ≥${config.minLockHours}h duration)`
+        : !warmedUp ? "warming up"
+        : "earning",
+      startsEarningAt: active && longEnough && !warmedUp ? c.createdAt + warmup : null,
+    };
+  });
+  const earningRaw = getAgedLockerBalances(warmup)
+    .find((l) => l.wallet === req.params.wallet)?.amountRaw ?? 0;
+  const lockedRaw = getLockerBalances().find((l) => l.wallet === req.params.wallet)?.amountRaw ?? 0;
   res.json({
     wallet: req.params.wallet,
-    lockedRaw: s.lockedRaw,
-    lockedTokens: s.lockedRaw / 10 ** config.tokenDecimals,
-    unlockableRaw: s.unlockableRaw,
-    unlockableTokens: s.unlockableRaw / 10 ** config.tokenDecimals,
-    nextUnlockAt: s.nextUnlockAt,
-    minLockHours: config.minLockHours,
+    lockedTokens: lockedRaw / 10 ** config.tokenDecimals,
+    earningTokens: earningRaw / 10 ** config.tokenDecimals,
+    contracts,
   });
-});
-
-/**
- * Self-serve unlock. The holder signs `MOONBAG_UNLOCK:<wallet>:<amountRaw>:<ts>`
- * with their wallet key; the signature proves ownership, the 24h FIFO rule
- * caps the amount, and a nonce table blocks replays.
- */
-api.post("/unlock", async (req, res) => {
-  const { wallet, amountRaw, timestamp, signature } = req.body ?? {};
-  if (typeof wallet !== "string" || typeof signature !== "string" ||
-      typeof amountRaw !== "number" || typeof timestamp !== "number") {
-    res.status(400).json({ error: "required: wallet, amountRaw, timestamp, signature" });
-    return;
-  }
-  const result = await requestUnlock(wallet, amountRaw, timestamp, signature);
-  if (!result.ok) {
-    res.status(result.code).json({ error: result.error });
-    return;
-  }
-  res.json({ ok: true, simulated: result.simulated, txSignature: result.txSignature });
 });

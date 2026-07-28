@@ -89,8 +89,9 @@ addEventListener("mousemove", (e) => {
 /* ── ticker band ────────────────────────────────────────────── */
 
 const phrases = [
-  "💰 $MOONBAG", "🔒 LOCK YOUR BAG", "◎ PAID EVERY 5 MINUTES",
-  "💎 DIAMOND HANDS ONLY", "📈 CREATOR REWARDS → LOCKERS", "🌕 NOBODY HOLDS ANYMORE",
+  "💰 $MOONBAG", "🔒 LOCKED ON STREAMFLOW", "◎ PAID EVERY 5 MINUTES",
+  "🛡 NON-CUSTODIAL", "💎 DIAMOND HANDS ONLY", "📈 CREATOR REWARDS → LOCKERS",
+  "🌕 NOBODY HOLDS ANYMORE",
 ];
 const track = document.getElementById("ticker-track");
 track.innerHTML = [...phrases, ...phrases, ...phrases, ...phrases]
@@ -197,6 +198,7 @@ function tickCountdown() {
   }
   const frac = remain / interval;
   cdProgress.style.strokeDashoffset = RING_LEN * (1 - frac);
+  positionTip(frac);
   const m = Math.floor(remain / 60000);
   const s = Math.floor((remain % 60000) / 1000);
   cdTime.textContent = `${m}:${String(s).padStart(2, "0")}`;
@@ -205,6 +207,7 @@ setInterval(tickCountdown, 250);
 tickCountdown();
 
 function flashDrop() {
+  dropBurst();
   cdTime.style.transition = "none";
   cdTime.style.transform = "scale(1.25)";
   cdTime.style.color = "#4ef0a8";
@@ -339,96 +342,136 @@ function setMint(mint) {
   }
 }
 
-/* ── wallet connect + self-serve unlock ─────────────────────── */
-
-const B58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-function base58Encode(bytes) {
-  let digits = [0];
-  for (const byte of bytes) {
-    let carry = byte;
-    for (let i = 0; i < digits.length; i++) {
-      const x = digits[i] * 256 + carry;
-      digits[i] = x % 58;
-      carry = Math.floor(x / 58);
-    }
-    while (carry) { digits.push(carry % 58); carry = Math.floor(carry / 58); }
-  }
-  let out = "";
-  for (const byte of bytes) { if (byte === 0) out += "1"; else break; }
-  for (let i = digits.length - 1; i >= 0; i--) out += B58_ALPHABET[digits[i]];
-  return out;
-}
+/* ── position checker (Streamflow locks, read-only) ─────────── */
 
 const walletBtn = document.getElementById("wallet-btn");
 const manageBody = document.getElementById("manage-body");
 const manageMsg = document.getElementById("manage-msg");
-let connectedWallet = null;
+const addressInput = document.getElementById("position-address");
 
 function setMsg(text, cls = "") {
   manageMsg.textContent = text;
   manageMsg.className = "manage-msg " + cls;
 }
 
-async function refreshPosition() {
-  if (!connectedWallet) return;
+async function checkPosition(address) {
+  if (!address || address.length < 32) {
+    setMsg("paste a valid Solana wallet address", "err");
+    return;
+  }
   try {
-    const pos = await fetchJSON(`/api/locker/${connectedWallet}`);
+    setMsg("reading locks from the chain…");
+    const pos = await fetchJSON(`/api/locker/${address}`);
+    manageBody.hidden = false;
     document.getElementById("m-locked").textContent = fmtTokens(pos.lockedTokens);
-    document.getElementById("m-unlockable").textContent = fmtTokens(pos.unlockableTokens);
-    document.getElementById("m-next").textContent = pos.nextUnlockAt
-      ? new Date(pos.nextUnlockAt * 1000).toLocaleString()
-      : pos.lockedRaw > 0 ? "all matured" : "—";
+    document.getElementById("m-earning").textContent = fmtTokens(pos.earningTokens);
+    document.getElementById("m-contracts").textContent = pos.contracts.length;
+    const list = document.getElementById("contract-list");
+    if (!pos.contracts.length) {
+      list.innerHTML = `<div class="contract-row"><span class="c-date">no Streamflow locks found for this wallet — lock at app.streamflow.finance/token-lock</span></div>`;
+    } else {
+      list.innerHTML = pos.contracts.map((c) => {
+        const cls = c.status === "earning" ? "earning" : c.status === "warming up" ? "warming" : "inactive";
+        const label = c.status === "warming up" && c.startsEarningAt
+          ? `warming up · earns ${new Date(c.startsEarningAt * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+          : c.status;
+        return `<div class="contract-row">
+          <span class="c-amt">${fmtTokens(c.lockedTokens)} 💰</span>
+          <span class="chip ${cls}">${label}</span>
+          <span class="c-date">unlocks ${new Date(c.unlocksAt * 1000).toLocaleDateString()}</span>
+        </div>`;
+      }).join("");
+    }
+    setMsg("");
   } catch {
-    setMsg("backend unreachable — position unavailable in preview", "err");
+    setMsg("backend unreachable — try again once the site is live", "err");
   }
 }
+
+document.getElementById("check-btn").addEventListener("click", () => checkPosition(addressInput.value.trim()));
+addressInput.addEventListener("keydown", (e) => e.key === "Enter" && checkPosition(addressInput.value.trim()));
 
 walletBtn.addEventListener("click", async () => {
   const provider = window.solana;
   if (!provider || !provider.isPhantom) {
-    setMsg("no Solana wallet found — install Phantom to manage your lock", "err");
-    manageBody.hidden = false;
+    setMsg("no Solana wallet found — install Phantom, or just paste your address above", "err");
     return;
   }
   try {
     const resp = await provider.connect();
-    connectedWallet = resp.publicKey.toString();
-    walletBtn.textContent = `${connectedWallet.slice(0, 4)}…${connectedWallet.slice(-4)}`;
-    manageBody.hidden = false;
-    setMsg("");
-    refreshPosition();
-    setInterval(refreshPosition, 15000);
+    const wallet = resp.publicKey.toString();
+    addressInput.value = wallet;
+    walletBtn.textContent = `${wallet.slice(0, 4)}…${wallet.slice(-4)}`;
+    checkPosition(wallet);
   } catch {
     setMsg("wallet connection cancelled", "err");
   }
 });
 
-document.getElementById("unlock-btn").addEventListener("click", async () => {
-  if (!connectedWallet) { setMsg("connect your wallet first", "err"); return; }
-  const tokens = parseFloat(document.getElementById("unlock-amount").value);
-  if (!tokens || tokens <= 0) { setMsg("enter an amount to unlock", "err"); return; }
-  const amountRaw = Math.round(tokens * 1e6); // pump.fun tokens have 6 decimals
-  const timestamp = Date.now();
-  const message = `MOONBAG_UNLOCK:${connectedWallet}:${amountRaw}:${timestamp}`;
-  try {
-    setMsg("sign the message in your wallet… (free — it's not a transaction)");
-    const signed = await window.solana.signMessage(new TextEncoder().encode(message), "utf8");
-    const signature = base58Encode(signed.signature);
-    const res = await fetch(API_BASE + "/api/unlock", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ wallet: connectedWallet, amountRaw, timestamp, signature }),
+/* ── high-effort extras: tilt, burst, progress, parallax ────── */
+
+// 3D tilt + pointer glare on cards
+const finePointer = matchMedia("(pointer: fine)").matches;
+if (finePointer) {
+  for (const card of document.querySelectorAll(".tilt")) {
+    card.addEventListener("mousemove", (e) => {
+      const r = card.getBoundingClientRect();
+      const px = (e.clientX - r.left) / r.width;
+      const py = (e.clientY - r.top) / r.height;
+      card.style.transform =
+        `perspective(900px) rotateY(${(px - 0.5) * 8}deg) rotateX(${(0.5 - py) * 8}deg) translateY(-4px)`;
+      card.style.setProperty("--gx", `${px * 100}%`);
+      card.style.setProperty("--gy", `${py * 100}%`);
     });
-    const body = await res.json();
-    if (!res.ok) { setMsg(body.error || "unlock failed", "err"); return; }
-    setMsg(body.simulated
-      ? "unlock accepted (simulation mode — no tokens moved)"
-      : `unlocked! tx: ${body.txSignature.slice(0, 16)}…`, "ok");
-    refreshPosition();
-  } catch (e) {
-    setMsg("signing cancelled or failed", "err");
+    card.addEventListener("mouseleave", () => { card.style.transform = ""; });
   }
-});
+}
+
+// nav scroll progress
+const navProgress = document.getElementById("nav-progress");
+addEventListener("scroll", () => {
+  const max = document.documentElement.scrollHeight - innerHeight;
+  navProgress.style.width = `${max > 0 ? (scrollY / max) * 100 : 0}%`;
+}, { passive: true });
+
+// comet dot riding the countdown ring (looked up lazily — tickCountdown
+// runs before this section of the script on first paint)
+function positionTip(frac) {
+  const el = document.getElementById("cd-tip");
+  if (!el) return;
+  const angle = -Math.PI / 2 + (1 - frac) * 2 * Math.PI;
+  const wrap = el.parentElement.getBoundingClientRect();
+  const R = (wrap.width / 200) * 88;
+  el.style.left = `${wrap.width / 2 + R * Math.cos(angle) - 7}px`;
+  el.style.top = `${wrap.width / 2 + R * Math.sin(angle) - 7}px`;
+}
+
+// gold burst when a drop fires
+function dropBurst() {
+  const burstLayer = document.getElementById("burst");
+  if (!burstLayer) return;
+  const glyphs = ["◎", "💰", "✦", "◎", "✦"];
+  for (let i = 0; i < 26; i++) {
+    const s = document.createElement("span");
+    const angle = (i / 26) * 2 * Math.PI + Math.random() * 0.4;
+    const dist = 90 + Math.random() * 110;
+    s.textContent = glyphs[i % glyphs.length];
+    s.style.setProperty("--bx", `${Math.cos(angle) * dist}px`);
+    s.style.setProperty("--by", `${Math.sin(angle) * dist}px`);
+    s.style.setProperty("--br", `${(Math.random() - 0.5) * 240}deg`);
+    s.style.color = i % 3 ? "#ffd75e" : "#4ef0a8";
+    burstLayer.appendChild(s);
+    setTimeout(() => s.remove(), 1200);
+  }
+}
+
+// gentle parallax on the moon while scrolling the hero
+const moonWrap = document.querySelector(".hero-moon-wrap");
+addEventListener("scroll", () => {
+  if (scrollY < innerHeight && moonWrap) {
+    moonWrap.style.transform = `translateY(${scrollY * 0.18}px)`;
+  }
+}, { passive: true });
 
 document.getElementById("copy-mint").addEventListener("click", () => {
   const text = document.getElementById("mint-address").textContent;

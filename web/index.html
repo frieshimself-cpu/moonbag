@@ -16,10 +16,13 @@
 <canvas id="stars"></canvas>
 <div class="nebula nebula-a"></div>
 <div class="nebula nebula-b"></div>
+<div class="aurora aurora-a"></div>
+<div class="aurora aurora-b"></div>
 <div class="grain"></div>
 
 <!-- ══════════════ NAV ══════════════ -->
 <nav class="nav">
+  <div class="nav-progress" id="nav-progress"></div>
   <a class="nav-logo" href="#top">
     <span class="nav-bag">💰</span>
     <span class="nav-name">MOONBAG</span>
@@ -37,16 +40,16 @@
 <header class="hero" id="top">
   <div class="hero-inner">
     <div class="hero-copy">
-      <div class="hero-eyebrow reveal"><span class="pulse-dot"></span>CREATOR REWARDS · REDISTRIBUTED EVERY 5 MINUTES</div>
+      <div class="hero-eyebrow reveal"><span class="pulse-dot"></span>NON-CUSTODIAL · LOCKED ON STREAMFLOW · PAID EVERY 5 MIN</div>
       <h1 class="hero-title">
         <span class="line reveal">NOBODY</span>
         <span class="line reveal">HOLDS</span>
         <span class="line reveal strike-wrap"><s>ANYMORE.</s></span>
       </h1>
-      <p class="hero-sub reveal">So every pump.fun creator reward this coin earns goes to the people who <b>lock their bags</b>. Every 5 minutes. Forever. Proportional to what you lock — lock more, earn more. Minimum lock: <b>24 hours</b>.</p>
+      <p class="hero-sub reveal">So every pump.fun creator reward this coin earns goes to the people who <b>lock their bags on Streamflow</b>. Every 5 minutes. Forever. Proportional to what you lock — lock more, earn more. Non-custodial: your tokens sit in Streamflow's on-chain escrow, never in anyone's wallet.</p>
       <div class="hero-cta reveal">
         <a class="btn btn-gold" id="hero-buy" href="https://pump.fun" target="_blank" rel="noopener">Buy on pump.fun <span class="btn-arrow">→</span></a>
-        <a class="btn btn-ghost" href="#how">Lock &amp; earn</a>
+        <a class="btn btn-ghost" id="hero-lock" href="https://app.streamflow.finance/token-lock" target="_blank" rel="noopener">🔒 Lock on Streamflow</a>
       </div>
       <div class="hero-mint reveal">
         <span class="mint-label">CA:</span>
@@ -86,7 +89,7 @@
 <!-- ══════════════ LIVE / COUNTDOWN ══════════════ -->
 <section class="section live" id="live">
   <div class="live-grid">
-    <div class="countdown-card reveal">
+    <div class="countdown-card tilt reveal">
       <div class="cd-label">NEXT REWARD DROP</div>
       <div class="cd-ring-wrap">
         <svg class="cd-ring" viewBox="0 0 200 200">
@@ -94,26 +97,28 @@
           <circle class="cd-progress" id="cd-progress" cx="100" cy="100" r="88" />
         </svg>
         <div class="cd-time" id="cd-time">5:00</div>
+        <div class="cd-tip" id="cd-tip"></div>
+        <div class="burst" id="burst"></div>
       </div>
       <div class="cd-sub">creator rewards → lockers, <b>every 5 minutes</b></div>
       <div class="cd-mode" id="cd-mode"></div>
     </div>
 
     <div class="stats-grid">
-      <div class="stat-tile reveal">
+      <div class="stat-tile tilt reveal">
         <div class="stat-value"><span data-count id="stat-locked">0</span><span class="stat-unit">%</span></div>
         <div class="stat-name">of supply locked</div>
         <div class="stat-bar"><div class="stat-bar-fill" id="locked-bar"></div></div>
       </div>
-      <div class="stat-tile reveal">
+      <div class="stat-tile tilt reveal">
         <div class="stat-value"><span data-count id="stat-lockers">0</span></div>
         <div class="stat-name">diamond-hand lockers</div>
       </div>
-      <div class="stat-tile reveal">
+      <div class="stat-tile tilt reveal">
         <div class="stat-value"><span data-count id="stat-sol">0</span><span class="stat-unit">◎</span></div>
         <div class="stat-name">SOL distributed to lockers</div>
       </div>
-      <div class="stat-tile reveal">
+      <div class="stat-tile tilt reveal">
         <div class="stat-value"><span data-count id="stat-payouts">0</span></div>
         <div class="stat-name">payouts sent</div>
       </div>
@@ -127,19 +132,19 @@
   <p class="section-sub reveal">Every trade on pump.fun pays the creator a fee. Normally that's the dev's exit liquidity. Here, the creator wallet is a <b>distribution machine</b> — it claims the fees and immediately splits them among lockers.</p>
 
   <div class="steps">
-    <div class="step-card reveal">
+    <div class="step-card tilt reveal">
       <div class="step-num">01</div>
       <div class="step-icon lock-anim">🔒</div>
-      <h3>Lock your bag</h3>
-      <p>Send any amount of $MOONBAG to the vault wallet. That's your lock — on-chain, public, counted within seconds. Deposits start <b>earning after 23 hours</b> and can be unlocked after <b>24 hours</b>.</p>
+      <h3>Lock on Streamflow</h3>
+      <p>Open <a class="inline-link" href="https://app.streamflow.finance/token-lock" target="_blank" rel="noopener">Streamflow token-lock</a>, pick $MOONBAG, choose an amount and a duration of <b>24 hours or more</b>. Non-custodial — your tokens sit in Streamflow's audited on-chain escrow, and unlock automatically on the date you chose.</p>
     </div>
-    <div class="step-card reveal">
+    <div class="step-card tilt reveal">
       <div class="step-num">02</div>
       <div class="step-icon accrue-anim">⛲</div>
       <h3>Fees pile up</h3>
-      <p>Every buy and sell generates creator rewards. The vault claims them automatically — nobody touches the pot, the code runs the show.</p>
+      <p>Every buy and sell generates creator rewards. They're claimed automatically <b>every minute</b> — nobody touches the pot, the code runs the show. After a <b>23-hour warm-up</b>, your lock starts collecting.</p>
     </div>
-    <div class="step-card reveal">
+    <div class="step-card tilt reveal">
       <div class="step-num">03</div>
       <div class="step-icon pay-anim">◎</div>
       <h3>Get paid in SOL</h3>
@@ -162,7 +167,7 @@
       </div>
       <p>No tiers. No vesting cliffs. No staking contract to get rugged by. Pure pro-rata — the chain does the ranking.</p>
     </div>
-    <div class="calc-card reveal">
+    <div class="calc-card tilt reveal">
       <div class="calc-title">💰 what's my cut?</div>
       <label class="calc-label">You lock <b id="calc-you">1.00%</b> of supply</label>
       <input type="range" id="calc-slider" min="1" max="500" value="100" />
@@ -195,26 +200,27 @@
     <div class="feed" id="feed"></div>
   </div>
 
-  <div class="manage-card reveal" id="manage">
+  <div class="manage-card tilt reveal" id="manage">
     <div class="manage-head">
       <div>
-        <div class="calc-title">🔐 your lock</div>
-        <div class="manage-sub">connect to see your position &amp; unlock (24h minimum per deposit)</div>
+        <div class="calc-title">🔐 check your lock</div>
+        <div class="manage-sub">paste your wallet address — see what's locked, what's earning, and when the rest kicks in</div>
       </div>
       <button class="btn btn-ghost btn-small" id="wallet-btn">Connect wallet</button>
+    </div>
+    <div class="manage-actions">
+      <input type="text" id="position-address" placeholder="your wallet address" spellcheck="false" />
+      <button class="btn btn-gold btn-small" id="check-btn">Check</button>
     </div>
     <div class="manage-body" id="manage-body" hidden>
       <div class="manage-stats">
         <div><span class="m-label">locked</span><b id="m-locked">—</b></div>
-        <div><span class="m-label">unlockable now</span><b id="m-unlockable" class="m-green">—</b></div>
-        <div><span class="m-label">next unlock</span><b id="m-next">—</b></div>
+        <div><span class="m-label">earning now</span><b id="m-earning" class="m-green">—</b></div>
+        <div><span class="m-label">lock contracts</span><b id="m-contracts">—</b></div>
       </div>
-      <div class="manage-actions">
-        <input type="number" id="unlock-amount" placeholder="amount of $MOONBAG" min="0" step="any" />
-        <button class="btn btn-gold btn-small" id="unlock-btn">Sign &amp; unlock</button>
-      </div>
-      <div class="manage-msg" id="manage-msg"></div>
+      <div class="contract-list" id="contract-list"></div>
     </div>
+    <div class="manage-msg" id="manage-msg"></div>
   </div>
 </section>
 
@@ -224,31 +230,35 @@
   <div class="faq-list">
     <details class="faq-item reveal">
       <summary>How do I lock?</summary>
-      <p>Send $MOONBAG from your wallet to the vault address (shown above once live). The wallet you send from is the wallet that gets paid. Locking more later just adds to your position.</p>
+      <p>Go to <a class="inline-link" href="https://app.streamflow.finance/token-lock" target="_blank" rel="noopener">Streamflow's token-lock</a>, connect your wallet, pick $MOONBAG, choose an amount and an unlock date <b>at least 24 hours out</b>. That's it — our engine reads your lock straight off the chain within seconds. Locks shorter than 24 hours don't qualify for rewards.</p>
+    </details>
+    <details class="faq-item reveal">
+      <summary>Is it safe? Who holds my tokens?</summary>
+      <p><b>Not us — and that's the point.</b> Your tokens sit in Streamflow's audited on-chain escrow, controlled by the lock contract you created, and unlock automatically on the date you chose. Nobody — not the dev, not this site — can touch them. We only <i>read</i> the locks and send SOL out.</p>
     </details>
     <details class="faq-item reveal">
       <summary>When do I start earning?</summary>
-      <p>23 hours after each deposit lands. Fresh locks show as "warming up" on the leaderboard until then. Why the wait? It makes lock-right-before-the-drop gaming impossible — you can't snipe a payout, you have to actually hold. Once a deposit is warmed up it earns on every drop until you unlock.</p>
+      <p>23 hours after your lock is created. Fresh locks show as "warming up" on the leaderboard until then. Why the wait? It makes lock-right-before-the-drop sniping impossible — you have to actually hold. Once warmed up, your lock earns on every drop until it expires.</p>
     </details>
     <details class="faq-item reveal">
       <summary>Which wallet gets paid?</summary>
-      <p>The exact wallet that signed the lock transfer. SOL rewards go straight to it every drop, and unlocks return tokens to it. ⚠️ That means: lock from a wallet <b>you</b> control (Phantom, Solflare, etc.) — never from an exchange, or the exchange's wallet earns your rewards.</p>
+      <p>The lock's recipient wallet — for a normal Streamflow self-lock, that's the wallet you locked with. SOL lands there every drop, no claiming needed.</p>
     </details>
     <details class="faq-item reveal">
       <summary>Where do the rewards come from?</summary>
-      <p>pump.fun pays token creators a fee on trading volume. 100% of those creator rewards are claimed by the vault and redistributed to lockers. No team cut is taken from the pot beyond a tiny SOL reserve for transaction fees.</p>
+      <p>pump.fun pays token creators a fee on trading volume. Those creator rewards are auto-claimed <b>every minute</b> and 100% redistributed to lockers. No team cut is taken from the pot beyond a tiny SOL reserve for transaction fees.</p>
     </details>
     <details class="faq-item reveal">
       <summary>What if my payout is tiny?</summary>
       <p>Dust payouts aren't lost — anything below the payout minimum rolls over and accumulates until it's worth sending. You'll get it.</p>
     </details>
     <details class="faq-item reveal">
-      <summary>Can I unlock?</summary>
-      <p>Yes — self-serve, 24 hours after each deposit lands. Connect your wallet in the "your lock" panel, sign a message (free, nothing leaves your wallet), and the vault sends your tokens back. Unlocks consume your oldest deposits first, so topping up never resets the clock on tokens you already locked. And of course: the moment you unlock, your share of every future drop shrinks.</p>
+      <summary>Can I unlock early?</summary>
+      <p>Your lock unlocks exactly when your Streamflow contract says it does — that was your choice at lock time. When it expires, withdraw on Streamflow; expired locks stop earning immediately.</p>
     </details>
     <details class="faq-item reveal">
       <summary>Is this financial advice?</summary>
-      <p>No. This is a memecoin. Locked tokens are transferred to a vault wallet — that requires trusting the vault operator. Assume anything you put in could go to zero. Never lock more than you can afford to lose entirely.</p>
+      <p>No. This is a memecoin. Rewards depend entirely on trading volume and may be zero. Locked tokens can't be sold until your lock expires — that's the entire point, and also the risk. Never lock more than you can afford to have stuck (or go to zero) for the duration.</p>
     </details>
   </div>
 </section>
@@ -263,7 +273,7 @@
     <a href="#board">leaderboard</a>
     <a href="#faq">faq</a>
   </div>
-  <div class="footer-disclaimer">$MOONBAG is a memecoin experiment, not an investment product. Locking transfers tokens to a vault wallet and requires trust in its operator. Rewards depend entirely on trading volume and may be zero. Do your own research.</div>
+  <div class="footer-disclaimer">$MOONBAG is a memecoin experiment, not an investment product. Locking is non-custodial via Streamflow’s on-chain escrow — locked tokens cannot be sold until the lock you chose expires. Rewards come solely from pump.fun creator fees, depend entirely on trading volume, and may be zero. Do your own research.</div>
 </footer>
 
 <script src="config.js"></script>

@@ -1,18 +1,18 @@
 {
   "name": "moonbag-server",
   "version": "1.0.0",
-  "description": "MOONBAG backend: tracks locked supply and distributes pump.fun creator rewards to lockers every 2 minutes",
+  "description": "MOONBAG backend: reads Streamflow locks and distributes pump.fun creator rewards to lockers every round",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "npm run test:engine && npm run test:unlock && npm run test:fuzz && npm run test:reset",
+    "test": "npm run test:engine && npm run test:fuzz && npm run test:reset && npm run test:streamflow",
+    "test:streamflow": "DB_PATH=test-streamflow.db tsx src/test-streamflow.ts; s=$?; rm -f test-streamflow.db*; exit $s",
     "test:reset": "DB_PATH=test-reset.db tsx src/test-reset.ts; s=$?; rm -f test-reset.db*; exit $s",
     "test:fuzz": "DB_PATH=test-fuzz.db tsx src/test-fuzz.ts; s=$?; rm -f test-fuzz.db*; exit $s",
     "test:engine": "DB_PATH=test-suite.db tsx src/test-suite.ts; s=$?; rm -f test-suite.db*; exit $s",
-    "test:unlock": "DB_PATH=test-unlock.db tsx src/test-unlock.ts; s=$?; rm -f test-unlock.db*; exit $s",
     "test:round": "tsx src/test-round.ts",
     "reset": "tsx src/reset-cli.ts",
     "setup": "tsx src/setup.ts",
@@ -20,13 +20,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@solana/spl-token": "^0.4.15",
     "@solana/web3.js": "^1.95.8",
     "better-sqlite3": "^11.10.0",
     "bs58": "^6.0.0",
     "dotenv": "^16.4.7",
-    "express": "^4.21.2",
-    "tweetnacl": "^1.0.3"
+    "express": "^4.21.2"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.12",

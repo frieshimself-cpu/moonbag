@@ -39,18 +39,17 @@ In `server/.env`: set `RPC_URL` to your paid RPC, keep `DRY_RUN=true` for now.
 
 ## 4. Rehearse the full loop
 
-1. From two OTHER wallets you own, buy a little of the token and send some
-   to the vault address → within ~30s both should appear in
+1. From two OTHER wallets you own, buy a little of the test token, then lock
+   some on https://app.streamflow.finance/token-lock (pick the token, an
+   amount, and a duration over 24h) → within ~30s both locks appear in
    `GET /api/leaderboard` and on the site.
 2. Do a few buys/sells to generate creator fees.
 3. For the rehearsal ONLY, set `MIN_REWARD_AGE_HOURS=0` (otherwise you'd
    wait 23h for your test locks to start earning). Set `DRY_RUN=false`,
    restart, and watch one 5-minute round: the log should show a fee claim,
    then payouts — and both wallets receive SOL in the right ratio.
-4. Test unlock: with `MIN_LOCK_HOURS=24` it should FAIL. To verify the path
-   end-to-end without waiting, temporarily set `MIN_LOCK_HOURS=0`, unlock via
-   the site's "your lock" panel, and confirm tokens come back.
-5. Restore `MIN_REWARD_AGE_HOURS=23` and `MIN_LOCK_HOURS=24` afterwards.
+4. Check the site's "check your lock" panel shows both positions correctly.
+5. Restore `MIN_REWARD_AGE_HOURS=23` afterwards.
 
 If all four behave, the machine works with real money. 
 

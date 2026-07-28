@@ -11,13 +11,15 @@ import { config } from "./config.js";
 
 assert.ok(config.dryRun, "reset test must run with DRY_RUN=true");
 
-// Dirty the ledger: aged locks, a distribution round, payouts, carry.
-const aged = Math.floor(Date.now() / 1000) - (config.minRewardAgeHours + 1) * 3600;
+// Dirty the ledger: aged Streamflow locks, a distribution round, payouts, carry.
+const nowTs = Math.floor(Date.now() / 1000);
+const aged = nowTs - (config.minRewardAgeHours + 1) * 3600;
 const seed = db.prepare(
-  `INSERT INTO locks (wallet, amount_raw, signature, block_time) VALUES (?, ?, ?, ${aged})`
+  `INSERT INTO sf_locks (contract, wallet, deposited_raw, withdrawn_raw, created_at, start_time, end_time, canceled_at)
+   VALUES (?, ?, ?, 0, ${aged}, ${aged}, ${nowTs + 30 * 86400}, 0)`
 );
-seed.run("ResetWalletAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", 5_000_000_000, "r-a");
-seed.run("ResetWalletBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB", 123, "r-b"); // dust → carry
+seed.run("r-ct-a", "ResetWalletAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", 5_000_000_000);
+seed.run("r-ct-b", "ResetWalletBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB", 123); // dust → carry
 await runDistribution();
 
 let totals = getTotals();
@@ -37,7 +39,7 @@ assert.equal(totals.paid.count, 0, "payout count must read zero");
 assert.equal(totals.lastDist, null, "no distribution history may remain");
 assert.equal(getLockerBalances().length, 0, "leaderboard must be empty");
 assert.equal((db.prepare("SELECT COUNT(*) c FROM carry").get() as any).c, 0, "carry wiped");
-assert.equal((db.prepare("SELECT COUNT(*) c FROM unlock_nonces").get() as any).c, 0, "nonces wiped");
+assert.equal((db.prepare("SELECT COUNT(*) c FROM sf_locks").get() as any).c, 0, "lock mirror wiped");
 console.log("✓ 2. after START: every stat reads zero, leaderboard empty, history gone");
 
 // Timer: anchored to the reset moment, first drop exactly one interval out.

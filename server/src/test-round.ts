@@ -1,20 +1,22 @@
 /**
- * Dev harness: seeds three lockers (1%, 0.5%, 0.25% of supply), runs one
- * dry-run distribution round, and prints what each wallet would receive.
- * Usage: npm run test:round   (uses a throwaway DB via DB_PATH)
+ * Dev harness: seeds three aged Streamflow locks (1%, 0.5%, 0.25% of
+ * supply), runs one dry-run round, and prints what each wallet receives.
+ * Usage: DB_PATH=tmp.db npm run test:round
  */
 import { db, getLockerBalances } from "./db.js";
 import { runDistribution } from "./distribute.js";
 import { config } from "./config.js";
 
 const SUPPLY = config.totalSupplyRaw;
-const agedTs = Math.floor(Date.now() / 1000) - (config.minRewardAgeHours + 1) * 3600;
+const now = Math.floor(Date.now() / 1000);
+const aged = now - (config.minRewardAgeHours + 1) * 3600;
 const seed = db.prepare(
-  `INSERT OR IGNORE INTO locks (wallet, amount_raw, signature, block_time) VALUES (?, ?, ?, ${agedTs})`
+  `INSERT OR IGNORE INTO sf_locks (contract, wallet, deposited_raw, withdrawn_raw, created_at, start_time, end_time, canceled_at)
+   VALUES (?, ?, ?, 0, ${aged}, ${aged}, ${now + 30 * 86400}, 0)`
 );
-seed.run("WalletAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", SUPPLY * 0.01, "sig-a");
-seed.run("WalletBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB", SUPPLY * 0.005, "sig-b");
-seed.run("WalletCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC", SUPPLY * 0.0025, "sig-c");
+seed.run("ct-a", "WalletAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", SUPPLY * 0.01);
+seed.run("ct-b", "WalletBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB", SUPPLY * 0.005);
+seed.run("ct-c", "WalletCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC", SUPPLY * 0.0025);
 
 console.log("lockers:", getLockerBalances().map((l) => ({
   wallet: l.wallet.slice(0, 7),
@@ -34,7 +36,6 @@ console.log("payouts:", payouts.map((p) => ({
   status: p.status,
 })));
 
-// Sanity: A locked 2× B, so A must be paid 2× B.
 const a = payouts.find((p) => p.wallet.startsWith("WalletA"))!;
 const b = payouts.find((p) => p.wallet.startsWith("WalletB"))!;
 const ratio = a.lamports / b.lamports;

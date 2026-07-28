@@ -19,10 +19,13 @@ assert.ok(config.dryRun, "fuzz test must run with DRY_RUN=true");
 let s = 123456789;
 const rand = () => ((s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
 
-// Backdated past the reward-age gate so every fuzz wallet earns immediately.
-const agedTs = Math.floor(Date.now() / 1000) - (config.minRewardAgeHours + 1) * 3600;
+// Streamflow locks backdated past the warm-up gate, month-long durations,
+// so every fuzz wallet earns immediately.
+const nowTs = Math.floor(Date.now() / 1000);
+const agedTs = nowTs - (config.minRewardAgeHours + 1) * 3600;
 const seed = db.prepare(
-  `INSERT INTO locks (wallet, amount_raw, signature, block_time) VALUES (?, ?, ?, ${agedTs})`
+  `INSERT INTO sf_locks (contract, wallet, deposited_raw, withdrawn_raw, created_at, start_time, end_time, canceled_at)
+   VALUES (?, ?, ?, 0, ${agedTs}, ${agedTs}, ${nowTs + 30 * 86400}, 0)`
 );
 const wallets: { wallet: string; amount: number }[] = [];
 for (let i = 0; i < 50; i++) {
@@ -30,7 +33,7 @@ for (let i = 0; i < 50; i++) {
   const amount = Math.floor(10 ** (3 + rand() * 6) * (1 + rand()));
   const wallet = `FuzzWallet${String(i).padStart(3, "0")}${"x".repeat(30)}`;
   wallets.push({ wallet, amount });
-  seed.run(wallet, amount, `fuzz-${i}`);
+  seed.run(`fuzz-ct-${i}`, wallet, amount);
 }
 const totalLocked = wallets.reduce((t, w) => t + w.amount, 0);
 

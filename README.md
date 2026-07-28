@@ -18,23 +18,24 @@ This repo contains the full stack:
 
 ## How the mechanic works
 
-1. **Lock** — a holder sends $MOONBAG to the vault wallet. The scanner watches
-   the vault's token account on-chain and credits the *sending* wallet with the
-   locked amount within ~30 seconds. Sending more later adds to the position.
-   Each deposit starts **earning rewards 23 hours after it lands**
-   (`MIN_REWARD_AGE_HOURS`) — so locking right before a drop earns nothing —
-   and has a **24-hour minimum lock** (configurable via `MIN_LOCK_HOURS`). After that it can be unlocked self-serve: the holder
-   signs a message with their wallet on the site (free, proves ownership), and
-   the vault sends the tokens back. Unlocks consume the oldest deposits first,
-   so topping up never resets the clock on earlier tokens.
-2. **Accrue** — pump.fun pays the token creator a fee on every trade. The vault
-   wallet *is* the creator wallet, so before each round it claims accrued
-   creator fees (via PumpPortal's local-signing API — the key never leaves the
-   server).
-3. **Distribute** — every 5 minutes the engine takes the vault's SOL balance
-   (minus a small fee reserve), splits it pro-rata by locked amount, and sends
-   SOL straight to each locker's wallet in batched transactions. Payouts below
-   the dust threshold carry over until they're worth sending — nothing is lost.
+1. **Lock** — holders lock $MOONBAG with
+   [Streamflow's token-lock](https://app.streamflow.finance/token-lock):
+   **non-custodial**, tokens sit in Streamflow's audited on-chain escrow and
+   unlock automatically on the date the holder chose. The scanner mirrors
+   every Streamflow contract for the mint (decoded against Streamflow's
+   published account layout) every ~30 seconds. To qualify, a lock needs a
+   duration of at least `MIN_LOCK_HOURS` (24h), and it starts **earning 23
+   hours after creation** (`MIN_REWARD_AGE_HOURS`) — so locking right before
+   a drop earns nothing. Expired or canceled locks stop earning instantly.
+2. **Accrue** — pump.fun pays the token creator a fee on every trade. Fees are
+   auto-claimed **every minute** via PumpPortal's local-signing API (keys never
+   leave the server); with a split creator/vault setup they're swept to the
+   reward wallet each cycle.
+3. **Distribute** — every 5 minutes the engine takes the reward wallet's SOL
+   (minus a small fee reserve), splits it pro-rata by eligible locked amount,
+   and sends SOL straight to each locker's wallet in batched transactions.
+   Payouts below the dust threshold carry over until they're worth sending —
+   nothing is lost.
 
 ```
 your locked bag ÷ all locked bags = your cut of every drop
@@ -71,9 +72,8 @@ site shows simulated data. To go live:
 | `GET /api/stats` | totals, next-drop timestamp, mode |
 | `GET /api/leaderboard` | top 25 lockers with supply % and pot share |
 | `GET /api/payouts` | 30 most recent payouts |
-| `GET /api/lock-info` | vault address + how to lock |
-| `GET /api/locker/:wallet` | one wallet's position: locked, unlockable now, next maturity |
-| `POST /api/unlock` | self-serve unlock — body `{wallet, amountRaw, timestamp, signature}` where signature is ed25519 over `MOONBAG_UNLOCK:<wallet>:<amountRaw>:<timestamp>` |
+| `GET /api/lock-info` | how to lock (Streamflow) + qualifying rules |
+| `GET /api/locker/:wallet` | one wallet's Streamflow locks: amounts, status (earning / warming up / too short / inactive), unlock dates |
 
 ### Key config (`server/.env`)
 
@@ -91,11 +91,11 @@ site shows simulated data. To go live:
 
 ## Honest limitations (read this)
 
-- **v1 locking is custodial.** Locked tokens sit in the vault wallet, so
-  lockers are trusting whoever holds the vault key. The trust-minimized
-  upgrade path is an on-chain escrow program (Anchor) where locks are
-  non-custodial PDAs — the accounting in this backend maps 1:1 onto that.
+- **Locking is non-custodial** (Streamflow escrow) — the project never holds
+  locked tokens. The wallet that IS trusted is the reward wallet: it claims
+  creator fees and holds the pot between 5-minute drops. Guard its key.
 - Payouts are SOL system transfers batched 8 per transaction; a failed batch
-  is automatically returned to the carry ledger so no one's share is lost.
+  retries individually and anything still failing returns to the carry
+  ledger, so no one's share is lost.
 - This is a memecoin experiment, not an investment product. Rewards depend
   entirely on trading volume and may be zero.

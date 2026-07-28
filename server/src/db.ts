@@ -5,17 +5,6 @@ export const db = new Database(config.dbPath);
 db.pragma("journal_mode = WAL");
 
 db.exec(`
-CREATE TABLE IF NOT EXISTS locks (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  wallet TEXT NOT NULL,
-  amount_raw INTEGER NOT NULL,          -- token base units; negative = unlock
-  signature TEXT NOT NULL UNIQUE,
-  slot INTEGER,
-  block_time INTEGER,
-  created_at INTEGER NOT NULL DEFAULT (unixepoch())
-);
-CREATE INDEX IF NOT EXISTS idx_locks_wallet ON locks(wallet);
-
 CREATE TABLE IF NOT EXISTS distributions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   started_at INTEGER NOT NULL,
@@ -49,11 +38,19 @@ CREATE TABLE IF NOT EXISTS meta (
   value TEXT
 );
 
--- One row per accepted unlock request; blocks signature replay.
-CREATE TABLE IF NOT EXISTS unlock_nonces (
-  nonce TEXT PRIMARY KEY,
-  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+-- Mirror of every Streamflow lock contract for our mint (refreshed by the
+-- scanner; the chain is the source of truth, this is a read model).
+CREATE TABLE IF NOT EXISTS sf_locks (
+  contract TEXT PRIMARY KEY,
+  wallet TEXT NOT NULL,            -- recipient: owns the lock, gets the SOL
+  deposited_raw INTEGER NOT NULL,
+  withdrawn_raw INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,     -- unix seconds, from the contract
+  start_time INTEGER NOT NULL,
+  end_time INTEGER NOT NULL,       -- unlock date the holder chose
+  canceled_at INTEGER NOT NULL DEFAULT 0
 );
+CREATE INDEX IF NOT EXISTS idx_sf_locks_wallet ON sf_locks(wallet);
 `);
 
 export function getMeta(key: string): string | null {
@@ -75,10 +72,16 @@ export interface LockerBalance {
 }
 
 /**
- * Reward-eligible balance per wallet: FIFO-net deposits that have been
- * locked for at least `minAgeSeconds`. Unlocks consume oldest deposits
- * first (matching the unlock module), and only the remaining deposits old
- * enough to clear the age gate count toward reward shares.
+ * A Streamflow lock counts as ACTIVE while it is not canceled, not fully
+ * withdrawn, and its unlock date is still in the future — once the lock
+ * expires the tokens are free, so they stop earning.
+ */
+const ACTIVE = `canceled_at = 0 AND deposited_raw > withdrawn_raw AND end_time > ?`;
+
+/**
+ * Reward-eligible balance per wallet. A lock earns when, on top of being
+ * active: it was created at least `minAgeSeconds` ago (the warm-up gate),
+ * and its total duration is at least MIN_LOCK_HOURS (no 5-minute locks).
  */
 export function getAgedLockerBalances(
   minAgeSeconds: number,
@@ -86,58 +89,60 @@ export function getAgedLockerBalances(
 ): LockerBalance[] {
   const rows = db
     .prepare(
-      `SELECT wallet, amount_raw AS amount, COALESCE(block_time, created_at) AS t
-       FROM locks ORDER BY t ASC, id ASC`
-    )
-    .all() as { wallet: string; amount: number; t: number }[];
-
-  const deposits = new Map<string, { amount: number; t: number }[]>();
-  const unlocked = new Map<string, number>();
-  for (const r of rows) {
-    if (r.amount > 0) {
-      let list = deposits.get(r.wallet);
-      if (!list) deposits.set(r.wallet, (list = []));
-      list.push({ amount: r.amount, t: r.t });
-    } else {
-      unlocked.set(r.wallet, (unlocked.get(r.wallet) ?? 0) - r.amount);
-    }
-  }
-
-  const cutoff = nowSec - minAgeSeconds;
-  const out: LockerBalance[] = [];
-  for (const [wallet, list] of deposits) {
-    let pool = unlocked.get(wallet) ?? 0;
-    let aged = 0;
-    for (const d of list) {
-      const consumed = Math.min(d.amount, pool);
-      pool -= consumed;
-      const remaining = d.amount - consumed;
-      if (remaining > 0 && d.t <= cutoff) aged += remaining;
-    }
-    if (aged > 0) out.push({ wallet, amountRaw: aged });
-  }
-  return out.sort((a, b) => b.amountRaw - a.amountRaw);
-}
-
-/** Net locked balance per wallet (deposits minus unlocks), positive only. */
-export function getLockerBalances(): LockerBalance[] {
-  const rows = db
-    .prepare(
-      `SELECT wallet, SUM(amount_raw) AS amountRaw
-       FROM locks GROUP BY wallet HAVING amountRaw > 0
+      `SELECT wallet, SUM(deposited_raw - withdrawn_raw) AS amountRaw
+       FROM sf_locks
+       WHERE ${ACTIVE}
+         AND created_at <= ?
+         AND (end_time - created_at) >= ?
+       GROUP BY wallet HAVING amountRaw > 0
        ORDER BY amountRaw DESC`
     )
-    .all() as { wallet: string; amountRaw: number }[];
+    .all(nowSec, nowSec - minAgeSeconds, config.minLockHours * 3600) as {
+    wallet: string;
+    amountRaw: number;
+  }[];
   return rows.map((r) => ({ wallet: r.wallet, amountRaw: r.amountRaw }));
 }
 
-export function getTotals() {
+/** Active locked balance per wallet (for display), regardless of warm-up. */
+export function getLockerBalances(nowSec = Math.floor(Date.now() / 1000)): LockerBalance[] {
+  const rows = db
+    .prepare(
+      `SELECT wallet, SUM(deposited_raw - withdrawn_raw) AS amountRaw
+       FROM sf_locks WHERE ${ACTIVE}
+       GROUP BY wallet HAVING amountRaw > 0
+       ORDER BY amountRaw DESC`
+    )
+    .all(nowSec) as { wallet: string; amountRaw: number }[];
+  return rows.map((r) => ({ wallet: r.wallet, amountRaw: r.amountRaw }));
+}
+
+/** All of one wallet's lock contracts, for the site's position panel. */
+export function getWalletLocks(wallet: string, nowSec = Math.floor(Date.now() / 1000)) {
+  return db
+    .prepare(
+      `SELECT contract, deposited_raw AS depositedRaw, withdrawn_raw AS withdrawnRaw,
+              created_at AS createdAt, end_time AS endTime, canceled_at AS canceledAt
+       FROM sf_locks WHERE wallet = ? ORDER BY created_at DESC`
+    )
+    .all(wallet) as {
+    contract: string;
+    depositedRaw: number;
+    withdrawnRaw: number;
+    createdAt: number;
+    endTime: number;
+    canceledAt: number;
+  }[];
+}
+
+export function getTotals(nowSec = Math.floor(Date.now() / 1000)) {
   const locked = db
     .prepare(
       `SELECT COALESCE(SUM(amountRaw), 0) AS total, COUNT(*) AS lockers FROM
-       (SELECT wallet, SUM(amount_raw) AS amountRaw FROM locks GROUP BY wallet HAVING amountRaw > 0)`
+       (SELECT wallet, SUM(deposited_raw - withdrawn_raw) AS amountRaw
+        FROM sf_locks WHERE ${ACTIVE} GROUP BY wallet HAVING amountRaw > 0)`
     )
-    .get() as { total: number; lockers: number };
+    .get(nowSec) as { total: number; lockers: number };
 
   const paid = db
     .prepare(

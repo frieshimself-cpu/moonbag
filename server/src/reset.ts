@@ -11,9 +11,8 @@ export function resetAll(): { anchor: number } {
   db.exec(`
     DELETE FROM payouts;
     DELETE FROM distributions;
-    DELETE FROM locks;
+    DELETE FROM sf_locks;
     DELETE FROM carry;
-    DELETE FROM unlock_nonces;
     DELETE FROM meta;
   `);
   setMeta("start_anchor", String(anchor));

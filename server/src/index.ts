@@ -1,6 +1,6 @@
 import { config, assertLiveConfig } from "./config.js";
 import { buildApp } from "./app.js";
-import { startLockScanner } from "./locks.js";
+import { startStreamflowScanner } from "./streamflow.js";
 import { startDistributor, startFeeClaimer } from "./distribute.js";
 
 assertLiveConfig();
@@ -15,7 +15,7 @@ buildApp().listen(config.port, () => {
   → distribution: every ${config.distributionIntervalMs / 1000}s
   → minimum lock: ${config.minLockHours}h
   `);
-  startLockScanner();
+  startStreamflowScanner();
   startFeeClaimer();
   startDistributor();
 });
