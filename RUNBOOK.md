@@ -54,10 +54,17 @@ In `server/.env`: set `RPC_URL` to your paid RPC, keep `DRY_RUN=true` for now.
 
 If all four behave, the machine works with real money. 
 
-## 5. Reset for launch
+## 5. Reset for launch (the START button)
 
-Stop the server and delete `moonbag.db*` (test-token history must not pollute
-the real ledger). Keep the same vault wallet.
+```bash
+CONFIRM=yes npm run reset
+```
+
+Wipes every stat, empties the leaderboard, clears all history, and anchors
+the payout timer to this exact moment — the first drop lands one full
+interval after you run it. Do this AFTER the rehearsal (test-token history
+must not pollute the real ledger) and never again once real holders have
+locked. Keep the same vault wallet.
 
 ## 6. Launch $MOONBAG
 

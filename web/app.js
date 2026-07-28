@@ -188,9 +188,11 @@ function tickCountdown() {
   const next = state.nextDistributionAt || Math.ceil(Date.now() / interval) * interval;
   let remain = next - Date.now();
   if (remain <= 0) {
-    // roll to the next epoch; server value refreshes on next poll
-    state.nextDistributionAt = Math.ceil((Date.now() + 1000) / interval) * interval;
-    remain = state.nextDistributionAt - Date.now();
+    // roll forward from the anchored schedule; server refreshes on next poll
+    let rolled = next;
+    while (rolled <= Date.now()) rolled += interval;
+    state.nextDistributionAt = rolled;
+    remain = rolled - Date.now();
     flashDrop();
   }
   const frac = remain / interval;

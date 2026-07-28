@@ -1,5 +1,5 @@
 import { config } from "./config.js";
-import { db, getAgedLockerBalances } from "./db.js";
+import { db, getAgedLockerBalances, getMeta, setMeta } from "./db.js";
 import { claimCreatorFees, getVaultSolBalance, sendSolBatch, sweepSolToVault, LAMPORTS_PER_SOL } from "./solana.js";
 
 const insertDistribution = db.prepare(
@@ -143,10 +143,15 @@ function now(): number {
   return Math.floor(Date.now() / 1000);
 }
 
-/** Epoch-aligned schedule so the countdown is predictable for the frontend. */
+/**
+ * Anchored schedule: drops land at start_anchor + n × interval, so the
+ * countdown starts a full interval at START (or first boot) and stays
+ * predictable across page refreshes and server restarts.
+ */
 export function nextDistributionAt(): number {
   const interval = config.distributionIntervalMs;
-  return Math.ceil(Date.now() / interval) * interval;
+  const anchor = Number(getMeta("start_anchor")) || 0;
+  return anchor + (Math.floor((Date.now() - anchor) / interval) + 1) * interval;
 }
 
 let claiming = false;
@@ -178,6 +183,7 @@ export function startFeeClaimer(): void {
 }
 
 export function startDistributor(): void {
+  if (!getMeta("start_anchor")) setMeta("start_anchor", String(Date.now()));
   const tick = () => {
     const delay = nextDistributionAt() - Date.now();
     setTimeout(async () => {
