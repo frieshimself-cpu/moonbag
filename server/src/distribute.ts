@@ -136,6 +136,35 @@ export function nextDistributionAt(): number {
   return Math.ceil(Date.now() / interval) * interval;
 }
 
+let claiming = false;
+
+/**
+ * Claim accrued creator fees on their own fast cadence (default: every
+ * minute), so SOL is already sitting in the vault when a round fires.
+ * The pre-round claim in distributeOnce stays as a final top-up.
+ */
+export function startFeeClaimer(): void {
+  if (config.dryRun || !config.vaultKeypair || !config.tokenMint) {
+    console.log("[claim] dry-run or unconfigured — fee claimer idle");
+    return;
+  }
+  const run = async () => {
+    if (claiming) return;
+    claiming = true;
+    try {
+      const sig = await claimCreatorFees(config.vaultKeypair!);
+      if (sig) console.log(`[claim] creator fees claimed: ${sig}`);
+    } catch (e: any) {
+      // Routine when nothing has accrued yet — log quietly and move on.
+      console.warn("[claim] claim attempt failed (will retry):", String(e.message ?? e).slice(0, 160));
+    } finally {
+      claiming = false;
+    }
+  };
+  setInterval(run, config.claimIntervalMs);
+  console.log(`[claim] fee claimer armed — every ${config.claimIntervalMs / 1000}s`);
+}
+
 export function startDistributor(): void {
   const tick = () => {
     const delay = nextDistributionAt() - Date.now();

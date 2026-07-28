@@ -1,7 +1,7 @@
 import { config, assertLiveConfig } from "./config.js";
 import { buildApp } from "./app.js";
 import { startLockScanner } from "./locks.js";
-import { startDistributor } from "./distribute.js";
+import { startDistributor, startFeeClaimer } from "./distribute.js";
 
 assertLiveConfig();
 
@@ -16,5 +16,6 @@ buildApp().listen(config.port, () => {
   → minimum lock: ${config.minLockHours}h
   `);
   startLockScanner();
+  startFeeClaimer();
   startDistributor();
 });

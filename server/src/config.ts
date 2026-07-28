@@ -48,6 +48,13 @@ export const config = {
   /** How often the vault token account is scanned for new locks. */
   lockScanIntervalMs: num("LOCK_SCAN_INTERVAL_MS", 30_000),
 
+  /**
+   * How often accrued creator fees are claimed into the vault (independent
+   * of the distribution cadence). Each claim is an on-chain tx (~0.000005
+   * SOL + priority fee), so don't set this below ~30s.
+   */
+  claimIntervalMs: num("CLAIM_INTERVAL_MS", 60_000),
+
   /** Skip a round if the distributable pot is below this (SOL). */
   minDistributionSol: num("MIN_DISTRIBUTION_SOL", 0.01),
 

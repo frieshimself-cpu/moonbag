@@ -143,8 +143,12 @@ function randWallet() {
 let live = false;
 let state = { ...DEMO.stats };
 
-async function fetchJSON(url) {
-  const res = await fetch(url, { cache: "no-store" });
+// API base: "" = same origin (backend serves the site, or Vercel rewrite);
+// a full URL = direct cross-origin calls to the backend. See config.js.
+const API_BASE = (window.MOONBAG_API_BASE || "").replace(/\/+$/, "");
+
+async function fetchJSON(path) {
+  const res = await fetch(API_BASE + path, { cache: "no-store" });
   if (!res.ok) throw new Error(res.status);
   return res.json();
 }
@@ -406,7 +410,7 @@ document.getElementById("unlock-btn").addEventListener("click", async () => {
     setMsg("sign the message in your wallet… (free — it's not a transaction)");
     const signed = await window.solana.signMessage(new TextEncoder().encode(message), "utf8");
     const signature = base58Encode(signed.signature);
-    const res = await fetch("/api/unlock", {
+    const res = await fetch(API_BASE + "/api/unlock", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ wallet: connectedWallet, amountRaw, timestamp, signature }),

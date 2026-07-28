@@ -11,7 +11,7 @@ This repo contains the full stack:
 
 | Directory | What it is |
 | --- | --- |
-| `web/` | The animated marketing + live-stats site (vanilla HTML/CSS/JS, zero build step) |
+| `web/` | The animated marketing + live-stats site (vanilla HTML/CSS/JS, zero build step, Vercel-ready via `vercel.json`) |
 | `server/` | TypeScript backend: lock tracking, creator-fee claiming, and the 5-minute distribution engine |
 
 ---

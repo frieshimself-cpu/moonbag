@@ -80,6 +80,22 @@ pm2 start dist/index.js --name moonbag && pm2 save && pm2 startup
 
 Put nginx/Caddy or a Cloudflare tunnel in front for HTTPS and a domain.
 
+**Website on Vercel (optional, recommended):**
+
+The engine cannot run on Vercel (serverless platforms can't run a 24/7
+payout loop), but the website can — Vercel gives you free hosting, HTTPS,
+and a domain, while the engine runs on your server/Docker host.
+
+1. Import this repo into Vercel (it auto-detects `vercel.json`; the site is
+   the `web/` folder, no build step).
+2. Deploy your backend somewhere with a public URL (step above).
+3. In `vercel.json`, replace `YOUR-BACKEND-URL-HERE` with that URL and
+   redeploy — the site proxies `/api/*` to your engine. (Alternative: set
+   the URL in `web/config.js` instead; the backend already sends CORS
+   headers, both routes work.)
+4. Until the backend URL is set, the Vercel site runs in demo/preview
+   mode — safe to deploy early for the marketing page.
+
 ## 8. Day-one checklist
 
 - [ ] Vault secret key exists in exactly one place (the server's `.env`).
