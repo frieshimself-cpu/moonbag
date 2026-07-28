@@ -89,7 +89,7 @@ addEventListener("mousemove", (e) => {
 /* ── ticker band ────────────────────────────────────────────── */
 
 const phrases = [
-  "💰 $MOONBAG", "🔒 LOCK YOUR BAG", "◎ PAID EVERY 2 MINUTES",
+  "💰 $MOONBAG", "🔒 LOCK YOUR BAG", "◎ PAID EVERY 5 MINUTES",
   "💎 DIAMOND HANDS ONLY", "📈 CREATOR REWARDS → LOCKERS", "🌕 NOBODY HOLDS ANYMORE",
 ];
 const track = document.getElementById("ticker-track");
@@ -113,7 +113,7 @@ document.querySelectorAll(".reveal").forEach((el, i) => {
 
 const DEMO = {
   stats: {
-    intervalMs: 120000,
+    intervalMs: 300000,
     nextDistributionAt: null,                 // computed locally
     totalLockedPct: 23.7,
     lockers: 142,
@@ -178,7 +178,7 @@ const cdTime = document.getElementById("cd-time");
 cdProgress.style.strokeDasharray = RING_LEN;
 
 function tickCountdown() {
-  const interval = state.intervalMs || 120000;
+  const interval = state.intervalMs || 300000;
   const next = state.nextDistributionAt || Math.ceil(Date.now() / interval) * interval;
   let remain = next - Date.now();
   if (remain <= 0) {

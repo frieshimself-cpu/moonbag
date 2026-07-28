@@ -3,7 +3,7 @@
 > **nobody holds anymore. so we pay the ones who do.**
 
 $MOONBAG is a pump.fun token with one mechanic: **100% of pump.fun creator
-rewards are redistributed to holders who lock supply — every 2 minutes,
+rewards are redistributed to holders who lock supply — every 5 minutes,
 proportional to how much they locked.** Lock 1% of supply and you earn twice
 as much per drop as someone who locked 0.5%.
 
@@ -12,7 +12,7 @@ This repo contains the full stack:
 | Directory | What it is |
 | --- | --- |
 | `web/` | The animated marketing + live-stats site (vanilla HTML/CSS/JS, zero build step) |
-| `server/` | TypeScript backend: lock tracking, creator-fee claiming, and the 2-minute distribution engine |
+| `server/` | TypeScript backend: lock tracking, creator-fee claiming, and the 5-minute distribution engine |
 
 ---
 
@@ -30,7 +30,7 @@ This repo contains the full stack:
    wallet *is* the creator wallet, so before each round it claims accrued
    creator fees (via PumpPortal's local-signing API — the key never leaves the
    server).
-3. **Distribute** — every 2 minutes the engine takes the vault's SOL balance
+3. **Distribute** — every 5 minutes the engine takes the vault's SOL balance
    (minus a small fee reserve), splits it pro-rata by locked amount, and sends
    SOL straight to each locker's wallet in batched transactions. Payouts below
    the dust threshold carry over until they're worth sending — nothing is lost.
@@ -78,7 +78,7 @@ site shows simulated data. To go live:
 
 | Var | Default | Meaning |
 | --- | --- | --- |
-| `DISTRIBUTION_INTERVAL_MS` | `120000` | reward cadence (2 min) |
+| `DISTRIBUTION_INTERVAL_MS` | `300000` | reward cadence (5 min) |
 | `MIN_LOCK_HOURS` | `24` | minimum lock per deposit before it can be unlocked |
 | `MIN_DISTRIBUTION_SOL` | `0.01` | skip a round below this pot |
 | `RESERVE_SOL` | `0.05` | SOL held back for tx fees |

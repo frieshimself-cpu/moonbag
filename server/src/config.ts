@@ -42,8 +42,8 @@ export const config = {
    */
   vaultKeypair: parseKeypair(process.env.VAULT_SECRET_KEY),
 
-  /** How often rewards are distributed. Thesis says every 2 minutes. */
-  distributionIntervalMs: num("DISTRIBUTION_INTERVAL_MS", 120_000),
+  /** How often rewards are distributed. Every 5 minutes. */
+  distributionIntervalMs: num("DISTRIBUTION_INTERVAL_MS", 300_000),
 
   /** How often the vault token account is scanned for new locks. */
   lockScanIntervalMs: num("LOCK_SCAN_INTERVAL_MS", 30_000),

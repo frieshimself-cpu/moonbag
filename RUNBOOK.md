@@ -37,7 +37,7 @@ In `server/.env`: set `RPC_URL` to your paid RPC, keep `DRY_RUN=true` for now.
    to the vault address → within ~30s both should appear in
    `GET /api/leaderboard` and on the site.
 2. Do a few buys/sells to generate creator fees.
-3. Set `DRY_RUN=false`, restart, and watch one 2-minute round: the log should
+3. Set `DRY_RUN=false`, restart, and watch one 5-minute round: the log should
    show a fee claim, then payouts — and both wallets receive SOL in the right
    ratio.
 4. Test unlock: it should FAIL (24h minimum). To verify the path end-to-end
@@ -65,7 +65,7 @@ everywhere; the site picks it up automatically from `/api/stats`.
 ## 8. Day-one checklist
 
 - [ ] Vault secret key exists in exactly one place (the server's `.env`).
-- [ ] `DRY_RUN=false`, `MIN_LOCK_HOURS=24`, interval 120000.
+- [ ] `DRY_RUN=false`, `MIN_LOCK_HOURS=24`, interval 300000.
 - [ ] First real locker appears on the leaderboard.
 - [ ] First distribution round pays out (check the payout feed + an explorer).
 - [ ] Tell holders: lock ONLY from a self-custody wallet, never an exchange.
