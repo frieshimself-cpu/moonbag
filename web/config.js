@@ -17,4 +17,4 @@ window.MOONBAG_API_BASE = "";
  * and used for the pump.fun buy links. When a backend is connected its
  * TOKEN_MINT takes precedence over this value.
  */
-window.MOONBAG_TOKEN_MINT = "Hss8eshRropcKrbxNCZ2xpibRGKJxUSrXjuQJmrqpump";
+window.MOONBAG_TOKEN_MINT = "C9pLVKKQ2ifVvwo4PXYP7buQexzyKYtiwiF9HFFUpump";
